@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+  
 <head>
+  <link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#2457D6">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mitra Messenger</title>
@@ -36,7 +39,8 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .bottom div{text-align:center;color:var(--muted);font-size:12px}
 .bottom b{display:block;font-size:21px;margin-bottom:5px}
 .bottom .selected{color:var(--accent)}
-.newchat{position:fixed;right:20px;bottom:85px;background:var(--accent);color:white;border:0;border-radius:17px;padding:15px 19px;font-size:22px}
+.newchat{position:fixed;ri
+  ght:20px;bottom:85px;background:var(--accent);color:white;border:0;border-radius:17px;padding:15px 19px;font-size:22px}
 #chatScreen{display:none;padding-bottom:75px}
 .chatHeader{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);position:sticky;top:0;z-index:2}
 .chatHeader button{border:0;background:transparent;color:var(--text);font-size:22px}
@@ -994,8 +998,7 @@ settings.hiddenChatIds.filter(x=>x!==chat.id);
 settings.hiddenChatIds.push(chat.id);
 
 }
-
-await saveSettings();
+  await saveSettings();
 backHome();
 
 }else if(n==="2"){
@@ -1296,5 +1299,14 @@ await ask("Logout Error",error.message);
 };
 
 </script>
+ <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("Mitra Service Worker Registered"))
+      .catch(error => console.error("SW Error:", error));
+  });
+}
+ </script> 
 </body>
 </html>
