@@ -1,0 +1,13 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Mitra",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Mitra",
+  "start_url": "/",
+  "theme_color": "#2457d6",
+  "id": "https://chatmitraapp.github.io/",
+  "description": "Mitra is a simple and secure messaging app.w"
+}
