@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mitra Login</title>
+
+<style>
+:root{
+ --bg:#f5f6fc;--card:#fff;--text:#171b2d;
+ --muted:#858b9b;--accent:#6657e8;
+}
+body.dark{
+ --bg:#111522;--card:#1c2333;
+ --text:#fff;--muted:#a0a7b8;
+}
+*{box-sizing:border-box}
+body{
+ margin:0;background:var(--bg);color:var(--text);
+ font-family:Arial,sans-serif;min-height:100vh;
+ display:flex;align-items:center;justify-content:center;
+ padding:22px;
+}
+.container{width:100%;max-width:420px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:30px;font-weight:800;color:var(--accent)}
+.logo span{color:var(--text)}
+.theme{
+ border:0;background:var(--card);color:var(--text);
+ padding:12px;border-radius:12px;font-size:20px;
+}
+.icon{
+ width:75px;height:75px;border-radius:24px;
+ background:#e9e5ff;color:var(--accent);
+ display:grid;place-items:center;font-size:38px;
+ margin:35px auto 20px;
+}
+h1{text-align:center;font-size:28px;margin:0 0 10px}
+.subtitle{
+ text-align:center;color:var(--muted);
+ font-size:14px;line-height:1.5;margin-bottom:25px;
+}
+.card{background:var(--card);padding:22px;border-radius:22px}
+.field{margin-bottom:17px}
+label{display:block;font-size:14px;font-weight:bold;margin-bottom:9px}
+input{
+ width:100%;padding:15px;border-radius:12px;
+ border:1px solid #ddd;background:var(--bg);
+ color:var(--text);font-size:15px;outline:none;
+}
+input:focus{border-color:var(--accent)}
+.password-wrap{position:relative}
+.password-wrap input{padding-right:55px}
+.eye{
+ position:absolute;right:10px;top:9px;
+ border:0;background:none;padding:7px;font-size:18px;
+}
+.primary{
+ width:100%;padding:16px;border:0;
+ border-radius:12px;background:var(--accent);
+ color:white;font-size:16px;font-weight:bold;margin-top:5px;
+}
+.primary:disabled{opacity:.6}
+.link{
+ border:0;background:none;color:var(--accent);
+ font-size:14px;padding:12px 0;
+}
+.center{text-align:center}
+.footer{
+ text-align:center;color:var(--muted);
+ font-size:13px;margin-top:20px;
+}
+.hidden{display:none}
+.divider{border-top:1px solid var(--bg);margin:15px 0}
+.status{
+ font-size:13px;text-align:center;margin:12px 0;
+ line-height:1.5;color:var(--accent);
+}
+.phone{display:flex;gap:9px}
+.country{
+ padding:15px 10px;background:var(--bg);
+ border-radius:12px;font-weight:bold;white-space:nowrap;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+ <div class="top">
+  <div class="logo">M<span>itra.</span></div>
+  <button class="theme" onclick="theme()">◐</button>
+ </div>
+
+ <div class="icon">✉</div>
+
+ <!-- LOGIN -->
+ <section id="login">
+  <h1>Welcome Back!</h1>
+  <p class="subtitle">Login to continue to Mitra</p>
+
+  <div class="card">
+   <div class="field">
+    <label>Email Address</label>
+    <input id="loginEmail" type="email"
+     placeholder="Enter your email" autocomplete="email">
+   </div>
+
+   <div class="field">
+    <label>Password</label>
+    <div class="password-wrap">
+     <input id="loginPassword" type="password"
+      placeholder="Enter password" autocomplete="current-password">
+     <button class="eye" onclick="toggle('loginPassword',this)">👁</button>
+    </div>
+   </div>
+
+   <div class="center">
+    <button class="link" onclick="show('forgot')">Forgot Password?</button>
+   </div>
+
+   <button class="primary" id="loginBtn" onclick="loginMitra()">Login →</button>
+   <p class="status" id="loginStatus"></p>
+
+   <div class="divider"></div>
+   <div class="center">
+    <span style="color:var(--muted)">New to Mitra?</span>
+    <button class="link" onclick="show('register')">Create Account</button>
+   </div>
+  </div>
+ </section>
+
+ <!-- REGISTER -->
+ <section id="register" class="hidden">
+  <h1>Create Account</h1>
+  <p class="subtitle">Join Mitra and connect with everyone</p>
+
+  <div class="card">
+   <div class="field">
+    <label>Full Name</label>
+    <input id="regName" type="text" placeholder="Enter your name"
+     autocomplete="name">
+   </div>
+
+   <div class="field">
+    <label>Mobile Number</label>
+    <div class="phone">
+     <div class="country">🇮🇳 +91</div>
+     <input id="regMobile" type="tel" maxlength="10"
+      placeholder="10-digit mobile number">
+    </div>
+   </div>
+
+   <div class="field">
+    <label>Email Address</label>
+    <input id="regEmail" type="email"
+     placeholder="Enter your email" autocomplete="email">
+   </div>
+
+   <div class="field">
+    <label>Create Password</label>
+    <div class="password-wrap">
+     <input id="regPassword" type="password"
+      placeholder="Minimum 8 characters" autocomplete="new-password">
+     <button class="eye" onclick="toggle('regPassword',this)">👁</button>
+    </div>
+   </div>
+
+   <div class="field">
+    <label>Confirm Password</label>
+    <input id="confirmPassword" type="password"
+     placeholder="Re-enter password" autocomplete="new-password">
+   </div>
+
+   <button class="primary" id="registerBtn"
+    onclick="registerMitra()">Create Account →</button>
+
+   <p class="status" id="registerStatus"></p>
+
+   <div class="center">
+    <button class="link" onclick="show('login')">← Back to Login</button>
+   </div>
+  </div>
+ </section>
+
+ <!-- FORGOT PASSWORD -->
+ <section id="forgot" class="hidden">
+  <h1>Forgot Password?</h1>
+  <p class="subtitle">Enter your registered email to recover your account.</p>
+
+  <div class="card">
+   <div class="field">
+    <label>Registered Email</label>
+    <input id="forgotEmail" type="email"
+     placeholder="Enter your email" autocomplete="email">
+   </div>
+
+   <button class="primary" id="resetBtn"
+    onclick="resetMitra()">Send Reset Link</button>
+
+   <p class="status" id="forgotStatus"></p>
+
+   <div class="center">
+    <button class="link" onclick="show('login')">← Back to Login</button>
+   </div>
+  </div>
+ </section>
+
+ <p class="footer">Your conversations. Your privacy. Your Mitra.</p>
+</div>
+
+<script>
+function show(page){
+ ['login','register','forgot'].forEach(id=>{
+  document.getElementById(id).classList.add('hidden');
+ });
+ document.getElementById(page).classList.remove('hidden');
+}
+
+function theme(){
+ document.body.classList.toggle('dark');
+}
+
+function toggle(id,button){
+ const field=document.getElementById(id);
+ field.type=field.type==='password'?'text':'password';
+ button.textContent=field.type==='password'?'👁':'🙈';
+}
+
+function message(id,text){
+ document.getElementById(id).textContent=text;
+}
+
+function busy(id,value){
+ document.getElementById(id).disabled=value;
+}
+
+function validEmail(email){
+ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function firebaseError(error){
+ const errors={
+  'auth/invalid-email':'Email address is invalid.',
+  'auth/user-not-found':'No account found with this email.',
+  'auth/wrong-password':'Incorrect password.',
+  'auth/invalid-credential':'Incorrect email or password.',
+  'auth/email-already-in-use':'This email is already registered.',
+  'auth/weak-password':'Password is too weak.',
+  'auth/too-many-requests':'Too many attempts. Try again later.',
+  'auth/network-request-failed':'Check your internet connection.',
+  'auth/operation-not-allowed':'Email/Password login is not enabled.',
+  'auth/invalid-api-key':'Firebase configuration is incorrect.'
+ };
+ return errors[error.code] || error.message || 'Something went wrong.';
+}
+</script>
+
+<script type="module">
+import { auth, db } from "./firebase.js";
+
+import {
+ createUserWithEmailAndPassword,
+ signInWithEmailAndPassword,
+ sendPasswordResetEmail,
+ updateProfile
+} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+
+import {
+ doc, setDoc, getDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+window.registerMitra = async function(){
+
+ const name=document.getElementById('regName').value.trim();
+ const mobile=document.getElementById('regMobile').value.trim();
+ const email=document.getElementById('regEmail').value.trim();
+ const password=document.getElementById('regPassword').value;
+ const confirm=document.getElementById('confirmPassword').value;
+
+ message('registerStatus','');
+
+ if(name.length<2){
+  message('registerStatus','Please enter your full name.');
+  return;
+ }
+ if(!/^[6-9][0-9]{9}$/.test(mobile)){
+  message('registerStatus','Enter a valid 10-digit mobile number.');
+  return;
+ }
+ if(!validEmail(email)){
+  message('registerStatus','Enter a valid email address.');
+  return;
+ }
+ if(password.length<8){
+  message('registerStatus','Password must have at least 8 characters.');
+  return;
+ }
+ if(password!==confirm){
+  message('registerStatus','Passwords do not match.');
+  return;
+ }
+
+ busy('registerBtn',true);
+ message('registerStatus','Creating your Mitra account...');
+
+ try{
+  const result=await createUserWithEmailAndPassword(auth,email,password);
+  const user=result.user;
+
+  await updateProfile(user,{displayName:name});
+
+  await setDoc(doc(db,'users',user.uid),{
+   uid:user.uid,
+   name:name,
+   email:email,
+   mobile:mobile,
+   createdAt:serverTimestamp()
+  });
+   
+await setDoc(doc(db,'publicUsers',user.uid),{
+  uid:user.uid,
+  name:name,
+  mobile:mobile
+});
+   
+  alert('Mitra account created successfully!');
+  window.location.href='index.html';
+
+ }catch(error){
+  message('registerStatus',firebaseError(error));
+ }finally{
+  busy('registerBtn',false);
+ }
+};
+
+window.loginMitra = async function(){
+
+ const email=document.getElementById('loginEmail').value.trim();
+ const password=document.getElementById('loginPassword').value;
+
+ message('loginStatus','');
+
+ if(!validEmail(email)){
+  message('loginStatus','Enter a valid email address.');
+  return;
+ }
+ if(!password){
+  message('loginStatus','Please enter your password.');
+  return;
+ }
+
+ busy('loginBtn',true);
+ message('loginStatus','Signing in...');
+
+try{
+  const result = await signInWithEmailAndPassword(auth,email,password);
+  const user = result.user;
+
+  const profileSnap = await getDoc(doc(db,'users',user.uid));
+
+  if(!profileSnap.exists()){
+    throw new Error('User profile not found. Please contact support.');
+  }
+
+  const profile = profileSnap.data();
+
+  await setDoc(doc(db,'publicUsers',user.uid),{
+    uid:user.uid,
+    name:profile.name,
+    mobile:profile.mobile
+  });
+
+  window.location.href='index.html';
+
+}catch(error){
+  message('loginStatus',firebaseError(error));
+}finally{
+  busy('loginBtn',false);
+}
+};
+
+window.resetMitra = async function(){
+
+ const email=document.getElementById('forgotEmail').value.trim();
+
+ message('forgotStatus','');
+
+ if(!validEmail(email)){
+  message('forgotStatus','Enter a valid email address.');
+  return;
+ }
+
+ busy('resetBtn',true);
+ message('forgotStatus','Sending reset link...');
+
+ try{
+  await sendPasswordResetEmail(auth,email);
+  message('forgotStatus','If an account exists for this email, a password reset link has been sent. Check your inbox and spam folder.');
+ }catch(error){
+  message('forgotStatus',firebaseError(error));
+ }finally{
+  busy('resetBtn',false);
+ }
+};
+</script>
+
+</body>
+</html>

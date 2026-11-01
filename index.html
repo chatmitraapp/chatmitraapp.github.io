@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mitra Messenger</title>
+<style>
+:root{
+--bg:#f5f6fa;--card:#fff;--text:#171b2d;
+--muted:#858b9b;--accent:#6657e8;--line:#eceef4;
+--danger:#d93045
+}
+body.dark{
+--bg:#111522;--card:#1c2333;--text:#fff;
+--muted:#a0a7b8;--line:#30384a
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input{font:inherit}
+header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:27px;font-weight:800;color:var(--accent)}
+.logo span{color:var(--text)}
+.actions button{border:0;background:var(--card);color:var(--text);padding:10px;border-radius:12px;font-size:18px;margin-left:4px}
+.search{padding:10px 16px}
+.search input{width:100%;padding:15px;border:0;border-radius:14px;background:var(--card);color:var(--text);font-size:15px;outline:none}
+.tabs{display:flex;gap:22px;padding:14px 18px;color:var(--muted);font-size:14px}
+.tabs .active{color:var(--accent);font-weight:bold}
+.section{padding:8px 18px;font-weight:bold}
+.chat{display:flex;align-items:center;padding:13px 18px;gap:13px;background:var(--card);border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.avatar{width:49px;height:49px;flex-shrink:0;border-radius:50%;background:#e9e5ff;color:#6657e8;display:grid;place-items:center;font-size:21px;font-weight:bold}
+.details{flex:1;min-width:0}
+.name{font-weight:bold;margin-bottom:6px}
+.message{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.time{font-size:11px;color:var(--muted)}
+.bottom{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;background:var(--card);padding:13px 5px;border-top:1px solid var(--line);z-index:3}
+.bottom div{text-align:center;color:var(--muted);font-size:12px}
+.bottom b{display:block;font-size:21px;margin-bottom:5px}
+.bottom .selected{color:var(--accent)}
+.newchat{position:fixed;right:20px;bottom:85px;background:var(--accent);color:white;border:0;border-radius:17px;padding:15px 19px;font-size:22px}
+#chatScreen{display:none;padding-bottom:75px}
+.chatHeader{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);position:sticky;top:0;z-index:2}
+.chatHeader button{border:0;background:transparent;color:var(--text);font-size:22px}
+#messages{padding:15px 12px 20px;min-height:55vh}
+.bubble{max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere}
+.bubble.mine{margin-left:auto;background:var(--accent);color:white}
+.bubble small{display:block;font-size:10px;opacity:.75;margin-top:5px}
+.bubble.deleted{font-style:italic;opacity:.7}
+.bubbleActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.bubbleActions button{border:0;border-radius:12px;padding:5px 8px;background:#00000018;color:inherit;font-size:13px}
+.reactionLine{font-size:17px;margin-top:5px}
+.composer{position:fixed;bottom:0;left:0;right:0;padding:10px;display:flex;gap:8px;background:var(--card);z-index:3}
+.composer input{flex:1;min-width:0;border:0;border-radius:20px;background:var(--bg);color:var(--text);padding:13px}
+.composer button,.primary{border:0;background:var(--accent);color:white;border-radius:14px;padding:12px 17px}
+.notice{padding:18px;color:var(--muted);text-align:center}
+#status{padding:8px 18px;color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.overlay{display:none;position:fixed;inset:0;background:#0008;z-index:10;align-items:center;justify-content:center;padding:18px}
+.dialog{width:100%;max-width:390px;background:var(--card);color:var(--text);border-radius:18px;padding:20px}
+.dialog h3{margin:0 0 12px}
+.dialog p{color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-wrap}
+.dialog input{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);margin:8px 0 14px}
+.dialogActions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.dialogActions button{border:0;border-radius:11px;padding:11px 14px;background:var(--bg);color:var(--text)}
+.dialogActions .primary{background:var(--accent);color:white}
+#settingsPanel{display:none;padding:18px 18px 90px}
+.settingRow{background:var(--card);padding:15px;border-bottom:1px solid var(--line);border-radius:12px;margin:8px 0;cursor:pointer}
+.errorText{color:var(--danger);font-size:12px;padding:5px 18px;overflow-wrap:anywhere}
+</style>
+</head>
+
+<body>
+
+<header id="homeHeader">
+<div class="logo">M<span>itra.</span></div>
+<div class="actions">
+<button onclick="toggleTheme()">◐</button>
+<button onclick="showSettings()">⚙</button>
+</div>
+</header>
+
+<div id="homeScreen">
+<div class="search">
+<input id="search" placeholder="⌕ Search chats or enter secret code..."
+oninput="filterChats()" onkeydown="searchEnter(event)">
+</div>
+
+<div class="tabs">
+<span class="active">CHATS</span>
+<span>GROUPS</span>
+<span>CALLS</span>
+</div>
+
+<div class="section" id="listTitle">Recent Chats</div>
+<div id="status">Starting Mitra...</div>
+<div id="errorInfo" class="errorText"></div>
+
+<main id="chats">
+<div class="notice">Loading chats...</div>
+</main>
+
+<button class="newchat" onclick="newChat()">＋</button>
+</div>
+
+<div id="settingsPanel">
+<h2>Settings</h2>
+<div class="settingRow">
+<b id="profileName">Profile</b>
+<p id="profileEmail" class="message"></p>
+<p id="profileMobile" class="message"></p>
+</div>
+<div class="settingRow" onclick="changeProfile()">✏️ Edit Profile</div>
+<div class="settingRow" onclick="toggleTheme()">◐ Change Theme</div>
+<div class="settingRow" onclick="changePin()">🔐 Change Secret Code</div>
+<div class="settingRow" onclick="resetPin()">♻️ Reset Secret Code</div>
+<div class="settingRow" onclick="showNormalChats()">💬 Show Normal Chats</div>
+<div class="settingRow" onclick="logout()" style="color:var(--danger)">↪ Logout</div>
+<button class="primary" onclick="closeSettings()">Back to Chats</button>
+</div>
+
+<div id="chatScreen">
+<div class="chatHeader">
+<button onclick="backHome()">‹</button>
+<div class="avatar" id="chatAvatar">M</div>
+<div class="details">
+<div class="name" id="chatName">Chat</div>
+<div class="message">Mitra Messenger</div>
+</div>
+<button onclick="chatOptions()">⋮</button>
+</div>
+<div id="messages">
+<div class="notice">Loading messages...</div>
+</div>
+<div class="composer">
+<input id="messageInput" placeholder="Type a message..."
+onkeydown="if(event.key==='Enter')sendMessage()">
+<button onclick="sendMessage()">➤</button>
+</div>
+</div>
+
+<nav class="bottom" id="bottomNav">
+<div class="selected" onclick="backHome()"><b>▣</b>Chats</div>
+<div><b>◉</b>Updates</div>
+<div><b>☎</b>Calls</div>
+<div onclick="showSettings()"><b>●</b>Profile</div>
+</nav>
+
+<div class="overlay" id="overlay">
+<div class="dialog">
+<h3 id="dialogTitle">Mitra</h3>
+<p id="dialogText"></p>
+<input id="dialogInput" style="display:none">
+<div class="dialogActions">
+<button onclick="closeDialog(false)">Cancel</button>
+<button class="primary" onclick="closeDialog(true)">OK</button>
+</div>
+</div>
+</div>
+
+<script type="module">
+
+import {auth,db} from './firebase.js';
+
+import {
+onAuthStateChanged,
+signOut,
+updatePassword
+} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+
+import {
+collection,
+doc,
+getDoc,
+getDocs,
+setDoc,
+addDoc,
+updateDoc,
+query,
+where,
+onSnapshot,
+serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+let currentUser=null;
+let currentProfile=null;
+let allChats=[];
+let activeChat=null;
+let chatsUnsubscribe=null;
+let messagesUnsubscribe=null;
+let showingHidden=false;
+let dialogResolve=null;
+let longPressTimer=null;
+
+let settings={
+secretSalt:"",
+secretHash:"",
+hiddenChatIds:[],
+deletedChatIds:[]
+};
+
+const $=id=>document.getElementById(id);
+
+const emojis=["👍","❤️","😂","😮","😢","🙏","🔥","😍","👏","🎉","😡"];
+
+function status(t){
+$("status").textContent=t;
+}
+
+function showError(e){
+const message=e?.message||String(e);
+$("errorInfo").textContent=message;
+console.error("MITRA ERROR:",e);
+}
+
+function escapeHTML(v){
+return String(v??"").replace(/[&<>"']/g,c=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+})[c]);
+}
+
+function ask(title,text,input=false,value=""){
+return new Promise(resolve=>{
+dialogResolve=resolve;
+$("dialogTitle").textContent=title;
+$("dialogText").textContent=text;
+$("dialogInput").style.display=input?"block":"none";
+$("dialogInput").value=value;
+$("overlay").style.display="flex";
+setTimeout(()=>input&&$("dialogInput").focus(),100);
+});
+}
+
+window.closeDialog=ok=>{
+const inputVisible=$("dialogInput").style.display!=="none";
+const value=$("dialogInput").value;
+$("overlay").style.display="none";
+if(dialogResolve){
+dialogResolve(ok?(inputVisible?value:true):null);
+dialogResolve=null;
+}
+};
+
+async function confirmBox(text){
+return (await ask("Mitra",text))===true;
+}
+
+window.toggleTheme=()=>{
+document.body.classList.toggle("dark");
+localStorage.setItem(
+"mitraTheme",
+document.body.classList.contains("dark")?"dark":"light"
+);
+};
+
+if(localStorage.getItem("mitraTheme")==="dark"){
+document.body.classList.add("dark");
+}
+
+// Global JavaScript errors
+window.addEventListener("error",e=>{
+showError(e.message);
+});
+
+window.addEventListener("unhandledrejection",e=>{
+showError(e.reason);
+});
+
+// Firebase Authentication
+status("Connecting to Firebase...");
+
+onAuthStateChanged(auth,async user=>{
+  try{
+
+if(chatsUnsubscribe)chatsUnsubscribe();
+if(messagesUnsubscribe)messagesUnsubscribe();
+
+if(!user){
+currentUser=null;
+status("Please login first.");
+$("chats").innerHTML=
+'<div class="notice">Please <a href="login.html">login</a> to use Mitra.</div>';
+return;
+}
+
+currentUser=user;
+status("Loading your profile...");
+$("errorInfo").textContent="";
+
+const profileSnap=await getDoc(
+doc(db,"users",user.uid)
+);
+
+if(!profileSnap.exists()){
+status("Profile not found.");
+return;
+}
+
+currentProfile=profileSnap.data();
+
+$("profileName").textContent=currentProfile.name||"Mitra User";
+$("profileEmail").textContent=currentProfile.email||user.email;
+$("profileMobile").textContent=currentProfile.mobile||"";
+
+status("Loading settings...");
+
+const settingsRef=doc(db,"userSettings",user.uid);
+const settingsSnap=await getDoc(settingsRef);
+
+if(settingsSnap.exists()){
+
+const d=settingsSnap.data();
+
+settings={
+secretSalt:d.secretSalt||"",
+secretHash:d.secretHash||"",
+hiddenChatIds:Array.isArray(d.hiddenChatIds)?d.hiddenChatIds:[],
+deletedChatIds:Array.isArray(d.deletedChatIds)?d.deletedChatIds:[]
+};
+
+}else{
+
+await saveSettings();
+
+}
+
+listenChats();
+
+}catch(error){
+
+status("Firebase Error");
+showError(error);
+
+}
+
+},error=>{
+
+status("Authentication Error");
+showError(error);
+
+});
+
+// Listen to chat list
+function listenChats(){
+
+status("Loading chats...");
+
+const q=query(
+collection(db,"chats"),
+where("members","array-contains",currentUser.uid)
+);
+
+chatsUnsubscribe=onSnapshot(q,snapshot=>{
+
+allChats=snapshot.docs.map(d=>({
+id:d.id,
+...d.data()
+}));
+
+renderChats();
+status("Connected to Mitra");
+$("errorInfo").textContent="";
+
+},error=>{
+
+status("Chat loading error");
+showError(error);
+
+});
+
+}
+
+// Render chat list
+function renderChats(){
+
+const list=$("chats");
+
+const hidden=new Set(settings.hiddenChatIds);
+const deleted=new Set(settings.deletedChatIds);
+
+let visible=allChats.filter(c=>
+!deleted.has(c.id)&&
+(showingHidden?hidden.has(c.id):!hidden.has(c.id))
+);
+
+visible.sort((a,b)=>
+(b.lastMessageAt?.toMillis?.()||0)-
+(a.lastMessageAt?.toMillis?.()||0)
+);
+
+$("listTitle").textContent=
+showingHidden?"Hidden Chats":"Recent Chats";
+
+if(!visible.length){
+
+list.innerHTML='<div class="notice">No chats yet. Tap ＋ to start.</div>';
+return;
+
+}
+
+list.innerHTML="";
+
+visible.forEach(c=>{
+
+const otherId=c.members?.find(id=>id!==currentUser.uid);
+const idx=c.members?.indexOf(otherId);
+const name=c.memberNames?.[idx]||"Mitra User";
+
+const row=document.createElement("div");
+row.className="chat";
+
+row.innerHTML=`
+<div class="avatar">${escapeHTML(name.charAt(0).toUpperCase())}</div>
+<div class="details">
+<div class="name">${escapeHTML(name)}</div>
+<div class="message">${escapeHTML(c.lastMessage||"Start chatting")}</div>
+</div>
+<div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>
+`;
+
+row.onclick=()=>openChat(c,otherId,name);
+
+row.addEventListener("contextmenu",e=>{
+e.preventDefault();
+chatListMenu(c);
+});
+
+row.addEventListener("touchstart",()=>{
+longPressTimer=setTimeout(()=>chatListMenu(c),650);
+},{passive:true});
+
+["touchend","touchmove","touchcancel"].forEach(ev=>{
+row.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
+});
+
+list.appendChild(row);
+
+});
+
+filterChats();
+
+}
+
+window.filterChats=()=>{
+const value=$("search").value.trim().toLowerCase();
+
+document.querySelectorAll("#chats .chat").forEach(row=>{
+row.style.display=
+row.innerText.toLowerCase().includes(value)?"flex":"none";
+});
+};
+
+// Search user by mobile
+async function findUserByMobile(number){
+
+const q=query(
+collection(db,"publicUsers"),
+where("mobile","==",number)
+);
+
+const result=await getDocs(q);
+
+return result.docs.find(d=>d.id!==currentUser.uid);
+
+}
+
+window.newChat=async()=>{
+
+const number=await ask(
+"New Chat",
+"Enter 10-digit mobile number",
+true
+);
+
+if(number!==null){
+await createChatWithNumber(number.trim());
+}
+
+};
+
+async function createChatWithNumber(number){
+
+if(!/^[0-9]{10}$/.test(number)){
+await ask("Invalid number","Enter a valid 10-digit mobile number.");
+return;
+}
+
+try{
+
+status("Searching user...");
+
+const found=await findUserByMobile(number);
+
+if(!found){
+status("Connected to Mitra");
+await ask("User not found","Ask the person to register on Mitra first.");
+return;
+}
+
+const other=found.data();
+
+const members=[currentUser.uid,other.uid].sort();
+const chatId=members.join("_");
+
+let chat=allChats.find(c=>c.id===chatId);
+
+if(!chat){
+
+const memberNames=members.map(uid=>
+uid===currentUser.uid?currentProfile.name:other.name
+);
+
+const data={
+members,
+memberNames,
+createdAt:serverTimestamp(),
+lastMessage:"",
+lastMessageAt:serverTimestamp()
+};
+
+await setDoc(doc(db,"chats",chatId),data);
+
+chat={id:chatId,...data};
+
+}
+
+settings.deletedChatIds=
+settings.deletedChatIds.filter(id=>id!==chatId);
+
+settings.hiddenChatIds=
+settings.hiddenChatIds.filter(id=>id!==chatId);
+
+await saveSettings();
+
+showingHidden=false;
+$("search").value="";
+
+openChat(chat,other.uid,other.name);
+
+}catch(error){
+
+status("Error");
+showError(error);
+
+}
+
+}
+
+// Open chat
+function openChat(chat,otherId,name){
+
+activeChat=chat;
+
+$("settingsPanel").style.display="none";
+$("homeScreen").style.display="none";
+$("homeHeader").style.display="none";
+$("bottomNav").style.display="none";
+$("chatScreen").style.display="block";
+
+$("chatName").textContent=name||"Mitra User";
+$("chatAvatar").textContent=(name||"M").charAt(0).toUpperCase();
+
+if(messagesUnsubscribe){
+messagesUnsubscribe();
+}
+
+const q=query(
+collection(db,"chats",chat.id,"messages")
+);
+
+messagesUnsubscribe=onSnapshot(q,async snapshot=>{
+
+try{
+
+const messages=snapshot.docs.map(d=>({
+id:d.id,
+...d.data()
+}));
+
+messages.sort((a,b)=>
+(a.createdAt?.toMillis?.()||0)-
+(b.createdAt?.toMillis?.()||0)
+);
+
+$("messages").innerHTML="";
+
+for(const m of messages){
+
+const hiddenRef=doc(
+db,"chats",chat.id,"messages",m.id,
+"deletedFor",currentUser.uid
+);
+
+const hiddenSnap=await getDoc(hiddenRef);
+
+if(hiddenSnap.exists())continue;
+
+const deleted=m.deletedForEveryone===true;
+
+const bubble=document.createElement("div");
+
+bubble.className=
+"bubble "+
+(m.senderId===currentUser.uid?"mine ":"")+
+(deleted?"deleted":"");
+
+const reactionSnap=await getDocs(
+collection(db,"chats",chat.id,"messages",m.id,"reactions")
+);
+
+const reactionCounts={};
+
+reactionSnap.forEach(r=>{
+const emoji=r.data().emoji;
+reactionCounts[emoji]=(reactionCounts[emoji]||0)+1;
+});
+
+const reactionHTML=Object.entries(reactionCounts)
+.map(([emoji,count])=>emoji+" "+count)
+.join(" ");
+
+bubble.innerHTML=`
+<div>${deleted?"This message was deleted":escapeHTML(m.text)}</div>
+<small>${m.senderId===currentUser.uid?"You":"Mitra User"} ${m.edited?"· edited":""}</small>
+${reactionHTML?`<div class="reactionLine">${reactionHTML}</div>`:""}
+`;
+
+if(!deleted){
+
+const actions=document.createElement("div");
+actions.className="bubbleActions";
+
+const react=document.createElement("button");
+react.textContent="😊 React";
+react.onclick=()=>reactionMenu(m);
+
+const more=document.createElement("button");
+more.textContent="⋮ Options";
+more.onclick=()=>messageMenu(m);
+
+actions.append(react,more);
+bubble.appendChild(actions);
+
+bubble.addEventListener("contextmenu",e=>{
+e.preventDefault();
+messageMenu(m);
+});
+
+bubble.addEventListener("touchstart",()=>{
+longPressTimer=setTimeout(()=>messageMenu(m),600);
+},{passive:true});
+
+["touchend","touchmove","touchcancel"].forEach(ev=>{
+bubble.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
+});
+
+}
+
+$("messages").appendChild(bubble);
+
+}
+
+if(!$("messages").children.length){
+$("messages").innerHTML='<div class="notice">Say hello 👋</div>';
+}
+
+$("messages").scrollTop=$("messages").scrollHeight;
+
+}catch(error){
+
+showError(error);
+
+}
+
+},error=>{
+
+$("messages").innerHTML=
+'<div class="notice">Message error: '+escapeHTML(error.message)+'</div>';
+
+showError(error);
+
+});
+
+}
+  // Back to home
+window.backHome=()=>{
+
+if(messagesUnsubscribe)messagesUnsubscribe();
+
+messagesUnsubscribe=null;
+activeChat=null;
+
+$("chatScreen").style.display="none";
+$("settingsPanel").style.display="none";
+$("homeScreen").style.display="block";
+$("homeHeader").style.display="flex";
+$("bottomNav").style.display="flex";
+
+renderChats();
+
+};
+
+// Send message
+window.sendMessage=async()=>{
+
+const input=$("messageInput");
+const text=input.value.trim();
+
+if(!text||!activeChat||!currentUser)return;
+
+input.value="";
+
+try{
+
+await addDoc(
+collection(db,"chats",activeChat.id,"messages"),
+{
+senderId:currentUser.uid,
+text,
+createdAt:serverTimestamp(),
+type:"text"
+}
+);
+
+await updateDoc(
+doc(db,"chats",activeChat.id),
+{
+lastMessage:text,
+lastMessageAt:serverTimestamp()
+}
+);
+
+}catch(error){
+
+input.value=text;
+showError(error);
+await ask("Message Error",error.message);
+
+}
+
+};
+
+// Emoji reaction
+async function reactionMenu(message){
+
+const choice=await ask(
+"Emoji Reaction",
+"Type one emoji:\n"+emojis.join(" "),
+true
+);
+
+if(choice===null)return;
+
+const emoji=choice.trim();
+
+if(!emojis.includes(emoji)){
+await ask("Invalid Emoji","Choose an emoji from the displayed list.");
+return;
+}
+
+try{
+
+const ref=doc(
+db,"chats",activeChat.id,"messages",message.id,
+"reactions",currentUser.uid
+);
+
+const old=await getDoc(ref);
+
+if(old.exists()&&old.data().emoji===emoji){
+await deleteDoc(ref);
+}else{
+await setDoc(ref,{
+userId:currentUser.uid,
+emoji,
+updatedAt:serverTimestamp()
+});
+}
+
+}catch(error){
+
+await ask("Reaction Error",error.message);
+
+}
+
+}
+
+// Message options
+async function messageMenu(message){
+
+const own=message.senderId===currentUser.uid;
+
+const options=own
+?"1 Edit Message\n2 Delete for Me\n3 Delete for Everyone\n4 React"
+:"1 Delete for Me\n2 React";
+
+const choice=await ask("Message Options",options,true);
+
+if(choice===null)return;
+
+const n=choice.trim();
+
+if(own&&n==="1"){
+
+const value=await ask(
+"Edit Message",
+"Enter updated message",
+true,
+message.text
+);
+
+if(value===null||!value.trim())return;
+
+try{
+
+await updateDoc(
+doc(db,"chats",activeChat.id,"messages",message.id),
+{
+text:value.trim(),
+edited:true,
+editedAt:serverTimestamp()
+}
+);
+
+}catch(error){
+
+await ask("Edit Error",error.message);
+
+}
+
+}else if((own&&n==="2")||(!own&&n==="1")){
+
+await deleteMessageForMe(message);
+
+}else if(own&&n==="3"){
+
+if(await confirmBox("Delete this message for both users?")){
+
+try{
+
+await updateDoc(
+doc(db,"chats",activeChat.id,"messages",message.id),
+{
+text:"This message was deleted",
+deletedForEveryone:true,
+deletedAt:serverTimestamp(),
+deletedBy:currentUser.uid
+}
+);
+
+}catch(error){
+
+await ask("Delete Error",error.message);
+
+}
+
+}
+
+}else if((own&&n==="4")||(!own&&n==="2")){
+
+await reactionMenu(message);
+
+}
+
+}
+
+// Delete message for me
+async function deleteMessageForMe(message){
+
+try{
+
+const ref=doc(
+db,"chats",activeChat.id,"messages",message.id,
+"deletedFor",currentUser.uid
+);
+
+const old=await getDoc(ref);
+
+if(!old.exists()){
+
+await setDoc(ref,{
+messageId:message.id,
+deletedAt:serverTimestamp()
+});
+
+}
+
+}catch(error){
+
+await ask("Delete Error",error.message);
+
+}
+
+}
+
+// Chat list menu
+async function chatListMenu(chat){
+
+const choice=await ask(
+"Chat Options",
+"1 Open Chat\n2 Hide / Unhide\n3 Delete Chat for Me",
+true
+);
+
+if(choice===null)return;
+
+const n=choice.trim();
+
+if(n==="1"){
+
+const otherId=chat.members.find(x=>x!==currentUser.uid);
+const idx=chat.members.indexOf(otherId);
+
+openChat(chat,otherId,chat.memberNames?.[idx]||"Mitra User");
+
+}else if(n==="2"){
+
+if(settings.hiddenChatIds.includes(chat.id)){
+
+settings.hiddenChatIds=
+settings.hiddenChatIds.filter(x=>x!==chat.id);
+
+}else{
+
+settings.hiddenChatIds.push(chat.id);
+
+}
+
+await saveSettings();
+renderChats();
+
+}else if(n==="3"){
+
+await deleteChatForMe(chat);
+
+}
+
+}
+
+// Delete complete chat for me
+async function deleteChatForMe(chat){
+
+if(!await confirmBox(
+"Remove this entire conversation from your chat list only? The other user's chat will remain."
+))return;
+
+try{
+
+settings.deletedChatIds=[
+...new Set([...settings.deletedChatIds,chat.id])
+];
+
+settings.hiddenChatIds=
+settings.hiddenChatIds.filter(x=>x!==chat.id);
+
+await saveSettings();
+renderChats();
+
+}catch(error){
+
+await ask("Delete Error",error.message);
+
+}
+
+}
+
+// Chat options
+window.chatOptions=async()=>{
+
+if(!activeChat)return;
+
+const chat=activeChat;
+
+const choice=await ask(
+"Chat Options",
+"1 Hide / Unhide\n2 Delete Chat for Me\n3 Clear Chat for Me",
+true
+);
+
+if(choice===null)return;
+
+const n=choice.trim();
+
+if(n==="1"){
+
+if(settings.hiddenChatIds.includes(chat.id)){
+
+settings.hiddenChatIds=
+settings.hiddenChatIds.filter(x=>x!==chat.id);
+
+}else{
+
+settings.hiddenChatIds.push(chat.id);
+
+}
+
+await saveSettings();
+backHome();
+
+}else if(n==="2"){
+
+await deleteChatForMe(chat);
+backHome();
+
+}else if(n==="3"){
+
+if(await confirmBox("Hide all current messages from your account only?")){
+
+try{
+
+const snap=await getDocs(
+collection(db,"chats",chat.id,"messages")
+);
+
+for(const message of snap.docs){
+
+const ref=doc(
+db,"chats",chat.id,"messages",message.id,
+"deletedFor",currentUser.uid
+);
+
+if(!(await getDoc(ref)).exists()){
+
+await setDoc(ref,{
+messageId:message.id,
+deletedAt:serverTimestamp()
+});
+
+}
+
+}
+
+}catch(error){
+
+await ask("Clear Error",error.message);
+
+}
+
+}
+
+}
+
+};
+
+// Save settings
+async function saveSettings(){
+
+await setDoc(
+doc(db,"userSettings",currentUser.uid),
+{
+secretSalt:settings.secretSalt,
+secretHash:settings.secretHash,
+hiddenChatIds:settings.hiddenChatIds,
+deletedChatIds:settings.deletedChatIds
+}
+);
+
+}
+
+// Secret code hash
+async function hashPin(pin,saltHex){
+
+const salt=new Uint8Array(
+saltHex.match(/.{2}/g).map(x=>parseInt(x,16))
+);
+
+const material=await crypto.subtle.importKey(
+"raw",
+new TextEncoder().encode(pin),
+"PBKDF2",
+false,
+["deriveBits"]
+);
+
+const bits=await crypto.subtle.deriveBits(
+{
+name:"PBKDF2",
+salt,
+iterations:150000,
+hash:"SHA-256"
+},
+material,
+256
+);
+
+return Array.from(new Uint8Array(bits))
+.map(x=>x.toString(16).padStart(2,"0"))
+.join("");
+
+}
+
+async function saveNewPin(pin){
+
+const salt=crypto.getRandomValues(new Uint8Array(16));
+
+settings.secretSalt=Array.from(salt)
+.map(x=>x.toString(16).padStart(2,"0"))
+.join("");
+
+settings.secretHash=await hashPin(pin,settings.secretSalt);
+
+await saveSettings();
+
+}
+
+// Change secret code
+window.changePin=async()=>{
+
+const pin=await ask(
+"Secret Code",
+"Enter a new 6-digit code",
+true
+);
+
+if(pin===null)return;
+
+if(!/^[0-9]{6}$/.test(pin)){
+await ask("Invalid Code","Code must contain exactly 6 digits.");
+return;
+}
+
+try{
+
+await saveNewPin(pin);
+await ask("Success","Secret Code updated.");
+
+}catch(error){
+
+await ask("Error",error.message);
+
+}
+
+};
+
+// Reset secret code
+window.resetPin=async()=>{
+
+if(!await confirmBox(
+"Reset Secret Code and remove your hidden chats from your list? The other user's chats will remain."
+))return;
+
+try{
+
+settings.deletedChatIds=[
+...new Set([...settings.deletedChatIds,...settings.hiddenChatIds])
+];
+
+settings.hiddenChatIds=[];
+settings.secretSalt="";
+settings.secretHash="";
+
+await saveSettings();
+
+showingHidden=false;
+renderChats();
+
+await ask("Success","Secret Code reset.");
+
+}catch(error){
+
+await ask("Error",error.message);
+
+}
+
+};
+
+// Search and unlock hidden chats
+window.searchEnter=async event=>{
+
+if(event.key!=="Enter")return;
+
+const value=$("search").value.trim();
+
+if(/^[0-9]{6}$/.test(value)){
+
+if(!settings.secretHash){
+await ask("No Secret Code","Create a Secret Code in Settings first.");
+return;
+}
+
+try{
+
+const hash=await hashPin(value,settings.secretSalt);
+
+if(hash===settings.secretHash){
+
+showingHidden=true;
+$("search").value="";
+renderChats();
+
+}else{
+
+await ask("Incorrect Code","Wrong Secret Code.");
+
+}
+
+}catch(error){
+
+await ask("Error",error.message);
+
+}
+
+}else if(/^[0-9]{10}$/.test(value)){
+
+$("search").value="";
+await createChatWithNumber(value);
+
+}
+
+};
+
+// Settings screen
+window.showSettings=()=>{
+
+$("homeScreen").style.display="none";
+$("settingsPanel").style.display="block";
+$("homeHeader").style.display="flex";
+$("bottomNav").style.display="flex";
+
+};
+
+window.closeSettings=()=>{
+
+$("settingsPanel").style.display="none";
+$("homeScreen").style.display="block";
+renderChats();
+
+};
+
+window.showNormalChats=()=>{
+
+showingHidden=false;
+$("search").value="";
+$("search").placeholder="⌕ Search chats or enter secret code...";
+closeSettings();
+
+};
+
+// Edit profile
+window.changeProfile=async()=>{
+
+const name=await ask(
+"Edit Profile",
+"Enter your display name",
+true,
+currentProfile.name||""
+);
+
+if(name===null||!name.trim())return;
+
+try{
+
+await updateDoc(
+doc(db,"users",currentUser.uid),
+{name:name.trim()}
+);
+
+await updateDoc(
+doc(db,"publicUsers",currentUser.uid),
+{name:name.trim()}
+);
+
+currentProfile.name=name.trim();
+$("profileName").textContent=name.trim();
+
+await ask("Success","Profile name updated.");
+
+}catch(error){
+
+await ask("Profile Error",error.message);
+
+}
+
+};
+
+// Logout
+window.logout=async()=>{
+
+if(!await confirmBox("Logout from Mitra?"))return;
+
+try{
+
+if(chatsUnsubscribe)chatsUnsubscribe();
+if(messagesUnsubscribe)messagesUnsubscribe();
+
+await signOut(auth);
+location.href="login.html";
+
+}catch(error){
+
+await ask("Logout Error",error.message);
+
+}
+
+};
+
+</script>
+</body>
+</html>
