@@ -309,7 +309,7 @@ function attachLongPress(element,callback){
   },true);
 }
 
-let settings={secretSalt:"",secretHash:"",hiddenChatIds:[],deletedChatIds:[]};
+let settings={secretSalt:"",secretHash:"",hiddenChatIds:[],deletedChatIds:[],mutedChatIds:[]};
 const $=id=>document.getElementById(id);
 function status(t){$("status").textContent=t;}
 function showError(e){
@@ -438,7 +438,8 @@ $("errorInfo").textContent="";
       settings={
         secretSalt:d.secretSalt||"",secretHash:d.secretHash||"",
         hiddenChatIds:Array.isArray(d.hiddenChatIds)?d.hiddenChatIds:[],
-        deletedChatIds:Array.isArray(d.deletedChatIds)?d.deletedChatIds:[]
+        deletedChatIds:Array.isArray(d.deletedChatIds)?d.deletedChatIds:[],
+        mutedChatIds:Array.isArray(d.mutedChatIds)?d.mutedChatIds:[]
       };
     }else{await saveSettings();}
     listenChats();
@@ -1425,8 +1426,10 @@ async function deleteMessageForMe(message){
   // Chat list menu
 async function chatListMenu(chat){
   const hidden=settings.hiddenChatIds.includes(chat.id);
+  const muted=settings.mutedChatIds.includes(chat.id);
   const choice=await showActionSheet("Chat options",[
     {label:"💬  Open chat",value:"open"},
+    {label:muted?"🔔  Unmute chat":"🔕  Mute chat",value:"mute"},
     {label:hidden?"🔓  Unhide chat":"🔒  Hide chat",value:"hide"},
     {label:"🗑️  Delete chat for me",value:"delete",danger:true}
   ]);
@@ -1437,6 +1440,15 @@ async function chatListMenu(chat){
     const otherId=chat.members.find(x=>x!==currentUser.uid);
     const idx=chat.members.indexOf(otherId);
     openChat(chat,otherId,chat.memberNames?.[idx]||"Mitra User");
+  }else if(choice==="mute"){
+    if(settings.mutedChatIds.includes(chat.id)){
+      settings.mutedChatIds=settings.mutedChatIds.filter(x=>x!==chat.id);
+    }else{
+      settings.mutedChatIds.push(chat.id);
+    }
+    await saveSettings();
+    renderChats();
+    await ask("Chat notifications",settings.mutedChatIds.includes(chat.id)?"Chat muted on this account.":"Chat unmuted on this account.");
   }else if(choice==="hide"){
     if(settings.hiddenChatIds.includes(chat.id)){
       settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
@@ -1527,7 +1539,8 @@ async function saveSettings(){
     secretSalt:settings.secretSalt,
     secretHash:settings.secretHash,
     hiddenChatIds:settings.hiddenChatIds,
-    deletedChatIds:settings.deletedChatIds
+    deletedChatIds:settings.deletedChatIds,
+    mutedChatIds:settings.mutedChatIds
   });
 }
 
