@@ -7,15 +7,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mitra Messenger</title>
 <style>
-:root{
---bg:#f5f6fa;--card:#fff;--text:#171b2d;
---muted:#858b9b;--accent:#6657e8;--line:#eceef4;
---danger:#d93045
-}
-body.dark{
---bg:#111522;--card:#1c2333;--text:#fff;
---muted:#a0a7b8;--line:#30384a
-}
+:root{--bg:#f5f6fa;--card:#fff;--text:#171b2d;--muted:#858b9b;--accent:#6657e8;--line:#eceef4;--danger:#d93045}
+body.dark{--bg:#111522;--card:#1c2333;--text:#fff;--muted:#a0a7b8;--line:#30384a}
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
 button,input{font:inherit}
@@ -28,7 +21,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .tabs{display:flex;gap:22px;padding:14px 18px;color:var(--muted);font-size:14px}
 .tabs .active{color:var(--accent);font-weight:bold}
 .section{padding:8px 18px;font-weight:bold}
-.chat{display:flex;align-items:center;padding:13px 18px;gap:13px;background:var(--card);border-bottom:1px solid var(--line);cursor:pointer;user-select:none;touch-action:pan-y}
+.chat{display:flex;align-items:center;padding:13px 18px;gap:13px;background:var(--card);border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
 .avatar{width:49px;height:49px;flex-shrink:0;border-radius:50%;background:#e9e5ff;color:#6657e8;display:grid;place-items:center;font-size:21px;font-weight:bold}
 .details{flex:1;min-width:0}
 .name{font-weight:bold;margin-bottom:6px}
@@ -42,13 +35,11 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 #chatScreen{display:none;padding-bottom:75px}
 .chatHeader{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);position:sticky;top:0;z-index:2}
 .chatHeader button{border:0;background:transparent;color:var(--text);font-size:22px}
-#messages{padding:15px 12px 90px;min-height:55vh}
-.bubble{max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere;touch-action:pan-y;user-select:none}
+#messages{padding:15px 12px 20px;min-height:55vh}
+.bubble{max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere}
 .bubble.mine{margin-left:auto;background:var(--accent);color:white}
 .bubble small{display:block;font-size:10px;opacity:.75;margin-top:5px}
 .bubble.deleted{font-style:italic;opacity:.7}
-.bubbleActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
-.bubbleActions button{border:0;border-radius:12px;padding:5px 8px;background:#00000018;color:inherit;font-size:13px}
 .reactionLine{font-size:17px;margin-top:5px}
 .composer{position:fixed;bottom:0;left:0;right:0;padding:10px;display:flex;gap:8px;background:var(--card);z-index:3}
 .composer input{flex:1;min-width:0;border:0;border-radius:20px;background:var(--bg);color:var(--text);padding:13px}
@@ -56,7 +47,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .notice{padding:18px;color:var(--muted);text-align:center}
 #status{padding:8px 18px;color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .overlay{display:none;position:fixed;inset:0;background:#0008;z-index:10;align-items:center;justify-content:center;padding:18px}
-.dialog{width:100%;max-width:390px;background:var(--card);color:var(--text);border-radius:18px;padding:20px;max-height:85vh;overflow-y:auto}
+.dialog{width:100%;max-width:390px;background:var(--card);color:var(--text);border-radius:18px;padding:20px}
 .dialog h3{margin:0 0 12px}
 .dialog p{color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-wrap}
 .dialog input{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);margin:8px 0 14px}
@@ -73,9 +64,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .errorText{color:var(--danger);font-size:12px;padding:5px 18px;overflow-wrap:anywhere}
 </style>
 </head>
-
 <body>
-
 <header id="homeHeader">
 <div class="logo">M<span>itra.</span></div>
 <div class="actions">
@@ -86,24 +75,15 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 
 <div id="homeScreen">
 <div class="search">
-<input id="search" placeholder="⌕ Search chats or enter secret code..."
-oninput="filterChats()" onkeydown="searchEnter(event)">
+<input id="search" placeholder="⌕ Search chats or enter secret code..." oninput="filterChats()" onkeydown="searchEnter(event)">
 </div>
-
 <div class="tabs">
-<span class="active">CHATS</span>
-<span>GROUPS</span>
-<span>CALLS</span>
+<span class="active">CHATS</span><span>GROUPS</span><span>CALLS</span>
 </div>
-
 <div class="section" id="listTitle">Recent Chats</div>
 <div id="status">Starting Mitra...</div>
 <div id="errorInfo" class="errorText"></div>
-
-<main id="chats">
-<div class="notice">Loading chats...</div>
-</main>
-
+<main id="chats"><div class="notice">Loading chats...</div></main>
 <button class="newchat" onclick="newChat()">＋</button>
 </div>
 
@@ -133,9 +113,7 @@ oninput="filterChats()" onkeydown="searchEnter(event)">
 </div>
 <button onclick="chatOptions()">⋮</button>
 </div>
-<div id="messages">
-<div class="notice">Loading messages...</div>
-</div>
+<div id="messages"><div class="notice">Loading messages...</div></div>
 <div class="composer">
 <input id="messageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()">
 <button onclick="sendMessage()">➤</button>
@@ -162,28 +140,9 @@ oninput="filterChats()" onkeydown="searchEnter(event)">
 </div>
 
 <script type="module">
-
 import {auth,db} from './firebase.js';
-
-import {
-onAuthStateChanged,
-signOut
-} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
-
-import {
-collection,
-doc,
-getDoc,
-getDocs,
-setDoc,
-addDoc,
-updateDoc,
-deleteDoc,
-query,
-where,
-onSnapshot,
-serverTimestamp
-} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+import {onAuthStateChanged,signOut,updatePassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
 let currentUser=null;
 let currentProfile=null;
@@ -194,1272 +153,754 @@ let messagesUnsubscribe=null;
 let showingHidden=false;
 let dialogResolve=null;
 
-let settings={
-secretSalt:"",
-secretHash:"",
-hiddenChatIds:[],
-deletedChatIds:[]
-};
-
-const $=id=>document.getElementById(id);
-
-const emojis=["👍","❤️","😂","😮","😢","🙏","🔥","😍","👏","🎉","😡"];
-
-function status(t){
-$("status").textContent=t;
-}
-
-function showError(e){
-const message=e?.message||String(e);
-$("errorInfo").textContent=message;
-console.error("MITRA ERROR:",e);
-}
-
-function escapeHTML(v){
-return String(v??"").replace(/[&<>"']/g,c=>({
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#39;"
-})[c]);
-}
-
-// Reliable long press for mouse, touch and stylus
 function attachLongPress(element,callback){
-let timer=null;
-let fired=false;
-let startX=0,startY=0;
+  let timer=null,startX=0,startY=0,fired=false;
+  const stop=()=>{if(timer!==null)clearTimeout(timer);timer=null;};
+  element.style.touchAction="pan-y";
+  element.style.webkitTouchCallout="none";
+  element.style.userSelect="none";
+  element.style.webkitUserSelect="none";
 
-const cancel=()=>{
-if(timer)clearTimeout(timer);
-timer=null;
-};
-
-element.addEventListener("pointerdown",event=>{
-if(event.pointerType==="mouse"&&event.button!==0)return;
-cancel();
-fired=false;
-startX=event.clientX;
-startY=event.clientY;
-
-timer=setTimeout(()=>{
-timer=null;
-fired=true;
-element._longPressTriggered=true;
-callback(event);
-setTimeout(()=>{element._longPressTriggered=false;},1000);
-},600);
-});
-
-element.addEventListener("pointerup",cancel);
-element.addEventListener("pointercancel",cancel);
-element.addEventListener("pointerleave",cancel);
-
-element.addEventListener("pointermove",event=>{
-if(Math.abs(event.clientX-startX)>12||
-Math.abs(event.clientY-startY)>12)cancel();
-});
-
-element.addEventListener("contextmenu",event=>{
-event.preventDefault();
-if(!fired){
-fired=true;
-element._longPressTriggered=true;
-callback(event);
-setTimeout(()=>{element._longPressTriggered=false;},1000);
-}
-});
+  element.addEventListener("pointerdown",event=>{
+    if(event.pointerType==="mouse"&&event.button!==0)return;
+    stop();fired=false;startX=event.clientX;startY=event.clientY;
+    timer=setTimeout(()=>{
+      timer=null;fired=true;
+      element.dataset.longPressed="true";
+      callback();
+    },650);
+  });
+  element.addEventListener("pointermove",event=>{
+    if(Math.abs(event.clientX-startX)>12||Math.abs(event.clientY-startY)>12)stop();
+  });
+  element.addEventListener("pointerup",stop);
+  element.addEventListener("pointercancel",stop);
+  element.addEventListener("contextmenu",event=>{
+    event.preventDefault();
+    if(!fired){
+      stop();fired=true;
+      element.dataset.longPressed="true";
+      callback();
+    }
+  });
+  element.addEventListener("click",event=>{
+    if(element.dataset.longPressed==="true"){
+      event.preventDefault();event.stopPropagation();
+      delete element.dataset.longPressed;
+    }
+  },true);
 }
 
+let settings={secretSalt:"",secretHash:"",hiddenChatIds:[],deletedChatIds:[]};
+const $=id=>document.getElementById(id);
+function status(t){$("status").textContent=t;}
+function showError(e){
+  const message=e?.message||String(e);
+  $("errorInfo").textContent=message;
+  console.error("MITRA ERROR:",e);
+}
+function escapeHTML(v){
+  return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
 function ask(title,text,input=false,value=""){
-return new Promise(resolve=>{
-dialogResolve=resolve;
-$("dialogTitle").textContent=title;
-$("dialogText").textContent=text;
-$("dialogInput").style.display=input?"block":"none";
-$("dialogInput").value=value;
-$("dialogActions").style.display="flex";
-$("overlay").style.display="flex";
-setTimeout(()=>input&&$("dialogInput").focus(),100);
-});
+  return new Promise(resolve=>{
+    dialogResolve=resolve;
+    $("dialogTitle").textContent=title;
+    $("dialogText").textContent=text;
+    $("dialogInput").style.display=input?"block":"none";
+    $("dialogInput").value=value;
+    $("overlay").style.display="flex";
+    setTimeout(()=>input&&$("dialogInput").focus(),100);
+  });
 }
-
 window.closeDialog=ok=>{
-const inputVisible=$("dialogInput").style.display!=="none";
-const value=$("dialogInput").value;
-$("overlay").style.display="none";
-
-if(dialogResolve){
-dialogResolve(ok?(inputVisible?value:true):null);
-dialogResolve=null;
-}
+  const inputVisible=$("dialogInput").style.display!=="none";
+  const value=$("dialogInput").value;
+  $("overlay").style.display="none";
+  if(dialogResolve){dialogResolve(ok?(inputVisible?value:true):null);dialogResolve=null;}
 };
+async function confirmBox(text){return (await ask("Mitra",text))===true;}
 
-async function confirmBox(text){
-return (await ask("Mitra",text))===true;
-}
-
-// Clickable action menu
 function showActionSheet(title,actions){
-return new Promise(resolve=>{
-const overlay=$("overlay");
-$("dialogTitle").textContent=title;
-$("dialogText").textContent="";
-$("dialogInput").style.display="none";
-
-const old=$("dialogActions");
-old.style.display="none";
-
-let sheet=document.getElementById("actionSheet");
-
-if(!sheet){
-sheet=document.createElement("div");
-sheet.id="actionSheet";
-sheet.className="actionSheet";
-old.parentNode.insertBefore(sheet,old);
-}
-
-sheet.innerHTML="";
-
-actions.forEach(action=>{
-const button=document.createElement("button");
-button.type="button";
-button.textContent=action.label;
-
-if(action.danger)button.classList.add("danger");
-
-button.onclick=()=>{
-overlay.style.display="none";
-sheet.innerHTML="";
-old.style.display="flex";
-resolve(action.value);
-};
-
-sheet.appendChild(button);
-});
-
-const cancel=document.createElement("button");
-cancel.type="button";
-cancel.className="cancelAction";
-cancel.textContent="Cancel";
-
-cancel.onclick=()=>{
-overlay.style.display="none";
-sheet.innerHTML="";
-old.style.display="flex";
-resolve(null);
-};
-
-sheet.appendChild(cancel);
-overlay.style.display="flex";
-});
+  return new Promise(resolve=>{
+    const overlay=$("overlay");
+    $("dialogTitle").textContent=title;
+    $("dialogText").textContent="";
+    $("dialogInput").style.display="none";
+    const old=$("dialogActions");
+    old.innerHTML="";
+    old.style.display="none";
+    let sheet=document.getElementById("actionSheet");
+    if(!sheet){
+      sheet=document.createElement("div");
+      sheet.id="actionSheet";
+      sheet.className="actionSheet";
+      old.parentNode.insertBefore(sheet,old);
+    }
+    sheet.innerHTML="";
+    actions.forEach(action=>{
+      const button=document.createElement("button");
+      button.type="button";
+      button.textContent=action.label;
+      if(action.danger)button.classList.add("danger");
+      button.onclick=()=>{
+        overlay.style.display="none";sheet.innerHTML="";
+        old.style.display="flex";resolve(action.value);
+      };
+      sheet.appendChild(button);
+    });
+    const cancel=document.createElement("button");
+    cancel.type="button";cancel.className="cancelAction";
+    cancel.textContent="Cancel";
+    cancel.onclick=()=>{
+      overlay.style.display="none";sheet.innerHTML="";
+      old.style.display="flex";resolve(null);
+    };
+    sheet.appendChild(cancel);
+    overlay.style.display="flex";
+  });
 }
 
 window.toggleTheme=()=>{
-document.body.classList.toggle("dark");
-localStorage.setItem(
-"mitraTheme",
-document.body.classList.contains("dark")?"dark":"light"
-);
+  document.body.classList.toggle("dark");
+  localStorage.setItem("mitraTheme",document.body.classList.contains("dark")?"dark":"light");
 };
+if(localStorage.getItem("mitraTheme")==="dark")document.body.classList.add("dark");
 
-if(localStorage.getItem("mitraTheme")==="dark"){
-document.body.classList.add("dark");
-}
+window.addEventListener("error",e=>showError(e.message));
+window.addEventListener("unhandledrejection",e=>showError(e.reason));
 
-window.addEventListener("error",e=>{
-showError(e.message);
-});
-
-window.addEventListener("unhandledrejection",e=>{
-showError(e.reason);
-});
-
-// Firebase Authentication
 status("Connecting to Firebase...");
-
 onAuthStateChanged(auth,async user=>{
-try{
+  try{
+    if(chatsUnsubscribe)chatsUnsubscribe();
+    if(messagesUnsubscribe)messagesUnsubscribe();
+    if(!user){
+      currentUser=null;status("Please login first.");
+      $("chats").innerHTML='<div class="notice">Please <a href="login.html">login</a> to use Mitra.</div>';
+      return;
+    }
+    currentUser=user;status("Loading your profile...");
+    $("errorInfo").textContent="";
+    const profileSnap=await getDoc(doc(db,"users",user.uid));
+    if(!profileSnap.exists()){status("Profile not found.");return;}
+    currentProfile=profileSnap.data();
+    $("profileName").textContent=currentProfile.name||"Mitra User";
+    $("profileEmail").textContent=currentProfile.email||user.email;
+    $("profileMobile").textContent=currentProfile.mobile||"";
+    status("Loading settings...");
+    const settingsRef=doc(db,"userSettings",user.uid);
+    const settingsSnap=await getDoc(settingsRef);
+    if(settingsSnap.exists()){
+      const d=settingsSnap.data();
+      settings={
+        secretSalt:d.secretSalt||"",secretHash:d.secretHash||"",
+        hiddenChatIds:Array.isArray(d.hiddenChatIds)?d.hiddenChatIds:[],
+        deletedChatIds:Array.isArray(d.deletedChatIds)?d.deletedChatIds:[]
+      };
+    }else{await saveSettings();}
+    listenChats();
+  }catch(error){status("Firebase Error");showError(error);}
+},error=>{status("Authentication Error");showError(error);});
 
-if(chatsUnsubscribe)chatsUnsubscribe();
-if(messagesUnsubscribe)messagesUnsubscribe();
-
-if(!user){
-currentUser=null;
-status("Please login first.");
-$("chats").innerHTML=
-'<div class="notice">Please <a href="login.html">login</a> to use Mitra.</div>';
-return;
-}
-
-currentUser=user;
-status("Loading your profile...");
-$("errorInfo").textContent="";
-
-const profileSnap=await getDoc(
-doc(db,"users",user.uid)
-);
-
-if(!profileSnap.exists()){
-status("Profile not found.");
-return;
-}
-
-currentProfile=profileSnap.data();
-
-$("profileName").textContent=currentProfile.name||"Mitra User";
-$("profileEmail").textContent=currentProfile.email||user.email;
-$("profileMobile").textContent=currentProfile.mobile||"";
-
-status("Loading settings...");
-
-const settingsRef=doc(db,"userSettings",user.uid);
-const settingsSnap=await getDoc(settingsRef);
-
-if(settingsSnap.exists()){
-const d=settingsSnap.data();
-
-settings={
-secretSalt:d.secretSalt||"",
-secretHash:d.secretHash||"",
-hiddenChatIds:Array.isArray(d.hiddenChatIds)?d.hiddenChatIds:[],
-deletedChatIds:Array.isArray(d.deletedChatIds)?d.deletedChatIds:[]
-};
-
-}else{
-await saveSettings();
-}
-
-listenChats();
-
-}catch(error){
-status("Firebase Error");
-showError(error);
-}
-
-},error=>{
-status("Authentication Error");
-showError(error);
-});
-
-// Listen to chat list
 function listenChats(){
-
-status("Loading chats...");
-
-const q=query(
-collection(db,"chats"),
-where("members","array-contains",currentUser.uid)
-);
-
-chatsUnsubscribe=onSnapshot(q,snapshot=>{
-
-allChats=snapshot.docs.map(d=>({
-id:d.id,
-...d.data()
-}));
-
-renderChats();
-status("Connected to Mitra");
-$("errorInfo").textContent="";
-
-},error=>{
-status("Chat loading error");
-showError(error);
-});
-
+  status("Loading chats...");
+  const q=query(collection(db,"chats"),where("members","array-contains",currentUser.uid));
+  chatsUnsubscribe=onSnapshot(q,snapshot=>{
+    allChats=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+    renderChats();status("Connected to Mitra");$("errorInfo").textContent="";
+  },error=>{status("Chat loading error");showError(error);});
 }
 
-// Render chat list
 function renderChats(){
-
-const list=$("chats");
-
-const hidden=new Set(settings.hiddenChatIds);
-const deleted=new Set(settings.deletedChatIds);
-
-let visible=allChats.filter(c=>
-!deleted.has(c.id)&&
-(showingHidden?hidden.has(c.id):!hidden.has(c.id))
-);
-
-visible.sort((a,b)=>
-(b.lastMessageAt?.toMillis?.()||0)-
-(a.lastMessageAt?.toMillis?.()||0)
-);
-
-$("listTitle").textContent=
-showingHidden?"Hidden Chats":"Recent Chats";
-
-if(!visible.length){
-list.innerHTML='<div class="notice">No chats yet. Tap ＋ to start.</div>';
-return;
+  const list=$("chats");
+  const hidden=new Set(settings.hiddenChatIds);
+  const deleted=new Set(settings.deletedChatIds);
+  let visible=allChats.filter(c=>!deleted.has(c.id)&&(showingHidden?hidden.has(c.id):!hidden.has(c.id)));
+  visible.sort((a,b)=>(b.lastMessageAt?.toMillis?.()||0)-(a.lastMessageAt?.toMillis?.()||0));
+  $("listTitle").textContent=showingHidden?"Hidden Chats":"Recent Chats";
+  if(!visible.length){list.innerHTML='<div class="notice">No chats yet. Tap ＋ to start.</div>';return;}
+  list.innerHTML="";
+  visible.forEach(c=>{
+    const otherId=c.members?.find(id=>id!==currentUser.uid);
+    const idx=c.members?.indexOf(otherId);
+    const name=c.memberNames?.[idx]||"Mitra User";
+    const row=document.createElement("div");
+    row.className="chat";
+    row.innerHTML=`<div class="avatar">${escapeHTML(name.charAt(0).toUpperCase())}</div>
+      <div class="details"><div class="name">${escapeHTML(name)}</div>
+      <div class="message">${escapeHTML(c.lastMessage||"Start chatting")}</div></div>
+      <div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>`;
+    row._longPressTriggered=false;
+    row.onclick=()=>{
+      if(row._longPressTriggered){row._longPressTriggered=false;return;}
+      openChat(c,otherId,name);
+    };
+    attachLongPress(row,()=>chatListMenu(c));
+    list.appendChild(row);
+  });
+  filterChats();
 }
-
-list.innerHTML="";
-
-visible.forEach(c=>{
-
-const otherId=c.members?.find(id=>id!==currentUser.uid);
-const idx=c.members?.indexOf(otherId);
-const name=c.memberNames?.[idx]||"Mitra User";
-
-const row=document.createElement("div");
-row.className="chat";
-
-row.innerHTML=`
-<div class="avatar">${escapeHTML(name.charAt(0).toUpperCase())}</div>
-<div class="details">
-<div class="name">${escapeHTML(name)}</div>
-<div class="message">${escapeHTML(c.lastMessage||"Start chatting")}</div>
-</div>
-<div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>
-`;
-
-row._longPressTriggered=false;
-
-row.onclick=()=>{
-if(row._longPressTriggered){
-row._longPressTriggered=false;
-return;
-}
-openChat(c,otherId,name);
-};
-
-attachLongPress(row,()=>chatListMenu(c));
-
-list.appendChild(row);
-
-});
-
-filterChats();
-
-}
-
 window.filterChats=()=>{
-const value=$("search").value.trim().toLowerCase();
-
-document.querySelectorAll("#chats .chat").forEach(row=>{
-row.style.display=
-row.innerText.toLowerCase().includes(value)?"flex":"none";
-});
+  const value=$("search").value.trim().toLowerCase();
+  document.querySelectorAll("#chats .chat").forEach(row=>{
+    row.style.display=row.innerText.toLowerCase().includes(value)?"flex":"none";
+  });
 };
 
-// Search user by mobile
 async function findUserByMobile(number){
-
-const q=query(
-collection(db,"publicUsers"),
-where("mobile","==",number)
-);
-
-const result=await getDocs(q);
-
-return result.docs.find(d=>d.id!==currentUser.uid);
-
+  const q=query(collection(db,"publicUsers"),where("mobile","==",number));
+  const result=await getDocs(q);
+  return result.docs.find(d=>d.id!==currentUser.uid);
 }
-
 window.newChat=async()=>{
-
-const number=await ask(
-"New Chat",
-"Enter 10-digit mobile number",
-true
-);
-
-if(number!==null){
-await createChatWithNumber(number.trim());
-}
-
+  const number=await ask("New Chat","Enter 10-digit mobile number",true);
+  if(number!==null)await createChatWithNumber(number.trim());
 };
-
 async function createChatWithNumber(number){
-
-if(!/^[0-9]{10}$/.test(number)){
-await ask("Invalid number","Enter a valid 10-digit mobile number.");
-return;
+  if(!/^[0-9]{10}$/.test(number)){await ask("Invalid number","Enter a valid 10-digit mobile number.");return;}
+  try{
+    status("Searching user...");
+    const found=await findUserByMobile(number);
+    if(!found){status("Connected to Mitra");await ask("User not found","Ask the person to register on Mitra first.");return;}
+    const other=found.data();
+    const members=[currentUser.uid,other.uid].sort();
+    const chatId=members.join("_");
+    let chat=allChats.find(c=>c.id===chatId);
+    if(!chat){
+      const memberNames=members.map(uid=>uid===currentUser.uid?currentProfile.name:other.name);
+      const data={members,memberNames,createdAt:serverTimestamp(),lastMessage:"",lastMessageAt:serverTimestamp()};
+      await setDoc(doc(db,"chats",chatId),data);
+      chat={id:chatId,...data};
+    }
+    settings.deletedChatIds=settings.deletedChatIds.filter(id=>id!==chatId);
+    settings.hiddenChatIds=settings.hiddenChatIds.filter(id=>id!==chatId);
+    await saveSettings();
+    showingHidden=false;$("search").value="";
+    openChat(chat,other.uid,other.name);
+  }catch(error){status("Error");showError(error);}
 }
-
-try{
-
-status("Searching user...");
-
-const found=await findUserByMobile(number);
-
-if(!found){
-status("Connected to Mitra");
-await ask("User not found","Ask the person to register on Mitra first.");
-return;
-}
-
-const other=found.data();
-
-const members=[currentUser.uid,other.uid].sort();
-const chatId=members.join("_");
-
-let chat=allChats.find(c=>c.id===chatId);
-
-if(!chat){
-
-const memberNames=members.map(uid=>
-uid===currentUser.uid?currentProfile.name:other.name
-);
-
-const data={
-members,
-memberNames,
-createdAt:serverTimestamp(),
-lastMessage:"",
-lastMessageAt:serverTimestamp()
-};
-
-await setDoc(doc(db,"chats",chatId),data);
-chat={id:chatId,...data};
-
-}
-
-settings.deletedChatIds=
-settings.deletedChatIds.filter(id=>id!==chatId);
-
-settings.hiddenChatIds=
-settings.hiddenChatIds.filter(id=>id!==chatId);
-
-await saveSettings();
-
-showingHidden=false;
-$("search").value="";
-
-openChat(chat,other.uid,other.name);
-
-}catch(error){
-status("Error");
-showError(error);
-}
-
-}
-
-// Open chat
+  // Open chat and load all messages together
 function openChat(chat,otherId,name){
+  activeChat=chat;
+  $("settingsPanel").style.display="none";
+  $("homeScreen").style.display="none";
+  $("homeHeader").style.display="none";
+  $("bottomNav").style.display="none";
+  $("chatScreen").style.display="block";
+  $("chatName").textContent=name||"Mitra User";
+  $("chatAvatar").textContent=(name||"M").charAt(0).toUpperCase();
 
-activeChat=chat;
+  if(messagesUnsubscribe)messagesUnsubscribe();
 
-$("settingsPanel").style.display="none";
-$("homeScreen").style.display="none";
-$("homeHeader").style.display="none";
-$("bottomNav").style.display="none";
-$("chatScreen").style.display="block";
+  const box=$("messages");
+  box.innerHTML='<div class="notice">Loading all messages...</div>';
+  delete box.dataset.loaded;
 
-$("chatName").textContent=name||"Mitra User";
-$("chatAvatar").textContent=(name||"M").charAt(0).toUpperCase();
+  const q=query(collection(db,"chats",chat.id,"messages"));
 
-const box=$("messages");
-box.innerHTML='<div class="notice">Loading messages...</div>';
-delete box.dataset.loaded;
+  messagesUnsubscribe=onSnapshot(q,async snapshot=>{
+    try{
+      const wasAtBottom=box.scrollHeight-box.scrollTop-box.clientHeight<100;
+      const firstLoad=!box.dataset.loaded;
 
-if(messagesUnsubscribe){
-messagesUnsubscribe();
-}
+      // First snapshot: process every old message at the same time.
+      const changes=snapshot.docChanges();
 
-const q=query(
-collection(db,"chats",chat.id,"messages")
-);
+      const updates=await Promise.all(changes.map(async change=>{
+        const messageId=change.doc.id;
+        const oldNode=box.querySelector(`[data-message-id="${messageId}"]`);
 
-messagesUnsubscribe=onSnapshot(q,async snapshot=>{
+        if(change.type==="removed")return {type:"removed",oldNode};
 
-try{
+        const m={id:messageId,...change.doc.data()};
+        const hiddenRef=doc(db,"chats",chat.id,"messages",m.id,"deletedFor",currentUser.uid);
+        const reactionRef=collection(db,"chats",chat.id,"messages",m.id,"reactions");
 
-const box=$("messages");
-const wasAtBottom=
-box.scrollHeight-box.scrollTop-box.clientHeight<100;
-const firstLoad=!box.dataset.loaded;
-const changes=snapshot.docChanges();
+        const [hiddenSnap,reactionSnap]=await Promise.all([
+          getDoc(hiddenRef),
+          getDocs(reactionRef)
+        ]);
 
-for(const change of changes){
+        if(hiddenSnap.exists())return {type:"hidden",oldNode};
 
-const messageId=change.doc.id;
-const oldNode=box.querySelector(`[data-message-id="${messageId}"]`);
+        const reactionCounts={};
+        reactionSnap.forEach(r=>{
+          const emoji=r.data().emoji;
+          reactionCounts[emoji]=(reactionCounts[emoji]||0)+1;
+        });
 
-if(change.type==="removed"){
-oldNode?.remove();
-continue;
-}
+        const reactionHTML=Object.entries(reactionCounts)
+          .map(([emoji,count])=>emoji+" "+count).join(" ");
 
-const m={id:messageId,...change.doc.data()};
+        const deleted=m.deletedForEveryone===true;
+        const bubble=document.createElement("div");
+        bubble.dataset.messageId=m.id;
+        bubble.dataset.createdAt=String(m.createdAt?.toMillis?.()||0);
+        bubble.className="bubble "+
+          (m.senderId===currentUser.uid?"mine ":"")+
+          (deleted?"deleted":"");
 
-const hiddenRef=doc(
-db,"chats",chat.id,"messages",m.id,
-"deletedFor",currentUser.uid
-);
+        const contentHTML=deleted?"This message was deleted":escapeHTML(m.text||"");
 
-const hiddenSnap=await getDoc(hiddenRef);
+        bubble.innerHTML=`
+          <div>${contentHTML}</div>
+          <small>${m.senderId===currentUser.uid?"You":"Mitra User"} ${m.edited?"· edited":""}</small>
+          ${reactionHTML?`<div class="reactionLine">${reactionHTML}</div>`:""}
+        `;
 
-if(hiddenSnap.exists()){
-oldNode?.remove();
-continue;
-}
+        if(!deleted)attachLongPress(bubble,()=>messageMenu(m));
 
-const deleted=m.deletedForEveryone===true;
+        return {type:"upsert",oldNode,bubble};
+      }));
 
-const bubble=document.createElement("div");
-bubble.dataset.messageId=m.id;
-bubble.dataset.createdAt=String(m.createdAt?.toMillis?.()||0);
+      // Render after all messages have been prepared.
+      updates.forEach(update=>{
+        if(update.type==="removed"||update.type==="hidden"){
+          update.oldNode?.remove();
+        }else if(update.type==="upsert"){
+          if(update.oldNode)update.oldNode.replaceWith(update.bubble);
+          else box.appendChild(update.bubble);
+        }
+      });
 
-bubble.className=
-"bubble "+
-(m.senderId===currentUser.uid?"mine ":"")+
-(deleted?"deleted":"");
+      // Keep chronological order.
+      const sortedNodes=[...box.querySelectorAll("[data-message-id]")]
+        .sort((a,b)=>Number(a.dataset.createdAt)-Number(b.dataset.createdAt));
 
-const reactionSnap=await getDocs(
-collection(db,"chats",chat.id,"messages",m.id,"reactions")
-);
+      sortedNodes.forEach(node=>box.appendChild(node));
 
-const reactionCounts={};
+      if(!box.querySelector("[data-message-id]")){
+        box.innerHTML='<div class="notice">Say hello 👋</div>';
+      }else{
+        box.querySelector(".notice")?.remove();
+      }
 
-reactionSnap.forEach(r=>{
-const emoji=r.data().emoji;
-reactionCounts[emoji]=(reactionCounts[emoji]||0)+1;
-});
+      if(firstLoad||wasAtBottom)box.scrollTop=box.scrollHeight;
+      box.dataset.loaded="true";
 
-const reactionHTML=Object.entries(reactionCounts)
-.map(([emoji,count])=>emoji+" "+count)
-.join(" ");
-
-let contentHTML=deleted?
-"This message was deleted":
-escapeHTML(m.text||"");
-
-if(!deleted&&m.type==="media"&&m.mediaUrl){
-const url=escapeHTML(m.mediaUrl);
-const fileName=escapeHTML(m.fileName||"Attachment");
-
-if((m.contentType||"").startsWith("image/")){
-contentHTML=`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${fileName}" style="display:block;max-width:min(100%,280px);max-height:320px;border-radius:12px"></a>`;
-}else if((m.contentType||"").startsWith("video/")){
-contentHTML=`<video controls playsinline preload="metadata" style="display:block;max-width:100%;max-height:320px;border-radius:12px"><source src="${url}" type="${escapeHTML(m.contentType)}"></video>`;
-}else if((m.contentType||"").startsWith("audio/")){
-contentHTML=`<audio controls preload="metadata" style="max-width:100%"><source src="${url}" type="${escapeHTML(m.contentType)}"></audio>`;
-}else{
-contentHTML=`<a href="${url}" target="_blank" rel="noopener" download="${fileName}">📎 ${fileName}</a>`;
-}
-}
-
-bubble.innerHTML=`
-<div>${contentHTML}</div>
-<small>${m.senderId===currentUser.uid?"You":"Mitra User"} ${m.edited?"· edited":""}</small>
-${reactionHTML?`<div class="reactionLine">${reactionHTML}</div>`:""}
-`;
-
-if(!deleted){
-
-const actions=document.createElement("div");
-actions.className="bubbleActions";
-
-const react=document.createElement("button");
-react.textContent="😊 React";
-react.onclick=()=>reactionMenu(m);
-
-const more=document.createElement("button");
-more.textContent="⋮ Options";
-more.onclick=()=>messageMenu(m);
-
-actions.append(react,more);
-bubble.appendChild(actions);
-
-attachLongPress(bubble,()=>messageMenu(m));
-
-}
-
-if(oldNode)oldNode.replaceWith(bubble);
-else box.appendChild(bubble);
-
-}
-
-const sortedNodes=[...box.querySelectorAll("[data-message-id]")]
-.sort((a,b)=>Number(a.dataset.createdAt)-Number(b.dataset.createdAt));
-
-sortedNodes.forEach(node=>box.appendChild(node));
-
-if(!box.querySelector("[data-message-id]")){
-box.innerHTML='<div class="notice">Say hello 👋</div>';
-}else{
-box.querySelector(".notice")?.remove();
-}
-
-if(firstLoad||wasAtBottom){
-box.scrollTop=box.scrollHeight;
-}
-
-box.dataset.loaded="true";
-
-}catch(error){
-showError(error);
-}
-
-},error=>{
-
-$("messages").innerHTML=
-'<div class="notice">Message error: '+escapeHTML(error.message)+'</div>';
-
-showError(error);
-
-});
-
+    }catch(error){
+      showError(error);
+      box.innerHTML='<div class="notice">Could not load messages: '+escapeHTML(error.message)+'</div>';
+    }
+  },error=>{
+    $("messages").innerHTML='<div class="notice">Message error: '+escapeHTML(error.message)+'</div>';
+    showError(error);
+  });
 }
 
 // Back to home
 window.backHome=()=>{
-
-if(messagesUnsubscribe)messagesUnsubscribe();
-
-messagesUnsubscribe=null;
-activeChat=null;
-
-$("chatScreen").style.display="none";
-$("settingsPanel").style.display="none";
-$("homeScreen").style.display="block";
-$("homeHeader").style.display="flex";
-$("bottomNav").style.display="flex";
-
-renderChats();
-
+  if(messagesUnsubscribe)messagesUnsubscribe();
+  messagesUnsubscribe=null;
+  activeChat=null;
+  $("chatScreen").style.display="none";
+  $("settingsPanel").style.display="none";
+  $("homeScreen").style.display="block";
+  $("homeHeader").style.display="flex";
+  $("bottomNav").style.display="flex";
+  renderChats();
 };
 
 // Send message
 window.sendMessage=async()=>{
-
-const input=$("messageInput");
-const text=input.value.trim();
-
-if(!text||!activeChat||!currentUser)return;
-
-input.value="";
-
-try{
-
-await addDoc(
-collection(db,"chats",activeChat.id,"messages"),
-{
-senderId:currentUser.uid,
-text,
-createdAt:serverTimestamp(),
-type:"text"
-}
-);
-
-await updateDoc(
-doc(db,"chats",activeChat.id),
-{
-lastMessage:text,
-lastMessageAt:serverTimestamp()
-}
-);
-
-}catch(error){
-
-input.value=text;
-showError(error);
-await ask("Message Error",error.message);
-
-}
-
+  const input=$("messageInput");
+  const text=input.value.trim();
+  if(!text||!activeChat||!currentUser)return;
+  input.value="";
+  try{
+    await addDoc(collection(db,"chats",activeChat.id,"messages"),{
+      senderId:currentUser.uid,
+      text,
+      createdAt:serverTimestamp(),
+      type:"text"
+    });
+    await updateDoc(doc(db,"chats",activeChat.id),{
+      lastMessage:text,
+      lastMessageAt:serverTimestamp()
+    });
+  }catch(error){
+    input.value=text;
+    showError(error);
+    await ask("Message Error",error.message);
+  }
 };
 
-// Emoji reaction
-async function reactionMenu(message){
-
-const choice=await ask(
-"Emoji Reaction",
-"Type one emoji:\n"+emojis.join(" "),
-true
-);
-
-if(choice===null)return;
-
-const emoji=choice.trim();
-
-if(!emojis.includes(emoji)){
-await ask("Invalid Emoji","Choose an emoji from the displayed list.");
-return;
-}
-
-try{
-
-const ref=doc(
-db,"chats",activeChat.id,"messages",message.id,
-"reactions",currentUser.uid
-);
-
-const old=await getDoc(ref);
-
-if(old.exists()&&old.data().emoji===emoji){
-await deleteDoc(ref);
-}else{
-await setDoc(ref,{
-userId:currentUser.uid,
-emoji,
-updatedAt:serverTimestamp()
-});
-}
-
-}catch(error){
-await ask("Reaction Error",error.message);
-}
-
-}
-
-// Message action menu
+// Message actions: open only with long press
 async function messageMenu(message){
+  if(!activeChat||message.deletedForEveryone)return;
+  const mine=message.senderId===currentUser.uid;
+  const actions=[
+    ...(mine&&message.type==="text"?[{label:"✏️  Edit message",value:"edit"}]:[]),
+    {label:"📋  Copy",value:"copy"},
+    {label:"↪️  Forward",value:"forward"},
+    {label:"🗑️  Delete for me",value:"deleteMe",danger:true},
+    ...(mine?[{label:"❌  Delete for everyone",value:"deleteEveryone",danger:true}]:[])
+  ];
 
-if(!activeChat||message.deletedForEveryone)return;
+  const choice=await showActionSheet("Message options",actions);
+  if(!choice)return;
 
-const mine=message.senderId===currentUser.uid;
+  try{
+    const ref=doc(db,"chats",activeChat.id,"messages",message.id);
 
-const actions=[
-...(mine&&message.type==="text"?
-[{label:"✏️  Edit message",value:"edit"}]:[]),
-{label:"📋  Copy",value:"copy"},
-{label:"↪️  Forward",value:"forward"},
-{label:"🗑️  Delete for me",value:"deleteMe",danger:true},
-...(mine?
-[{label:"❌  Delete for everyone",value:"deleteEveryone",danger:true}]:[])
-];
+    if(choice==="copy"){
+      const copyText=message.text||"";
+      if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(copyText);
+      else{
+        const temp=document.createElement("textarea");
+        temp.value=copyText;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        temp.remove();
+      }
+      return;
+    }
 
-const choice=await showActionSheet("Message options",actions);
+    if(choice==="edit"){
+      const value=await ask("Edit message","Update your message",true,message.text||"");
+      if(value!==null&&value.trim()){
+        await updateDoc(ref,{text:value.trim(),edited:true,editedAt:serverTimestamp()});
+      }
+      return;
+    }
 
-if(!choice)return;
+    if(choice==="deleteMe")return deleteMessageForMe(message);
 
-try{
+    if(choice==="deleteEveryone"){
+      if(await confirmBox("Delete this message for everyone?")){
+        await updateDoc(ref,{
+          deletedForEveryone:true,
+          text:"",
+          mediaUrl:"",
+          deletedAt:serverTimestamp()
+        });
+      }
+      return;
+    }
 
-const ref=doc(db,"chats",activeChat.id,"messages",message.id);
+    if(choice==="forward"){
+      const number=await ask("Forward message","Enter recipient's 10-digit mobile number",true);
+      if(!number)return;
+      const found=await findUserByMobile(number.trim());
+      if(!found)return ask("User not found","This user is not registered on Mitra.");
 
-if(choice==="copy"){
-const copyText=message.text||message.fileName||message.mediaUrl||"";
-if(navigator.clipboard&&navigator.clipboard.writeText){
-await navigator.clipboard.writeText(copyText);
-}else{
-const temp=document.createElement("textarea");
-temp.value=copyText;
-document.body.appendChild(temp);
-temp.select();
-document.execCommand("copy");
-temp.remove();
-}
-await ask("Copied","Message copied.");
-return;
-}
+      const recipient=found.data();
+      const members=[currentUser.uid,recipient.uid].sort();
+      const chatId=members.join("_");
+      const memberNames=members.map(uid=>uid===currentUser.uid?currentProfile.name:recipient.name);
 
-if(choice==="edit"){
+      await setDoc(doc(db,"chats",chatId),{
+        members,memberNames,
+        lastMessage:message.text||message.fileName||"Forwarded media",
+        lastMessageAt:serverTimestamp()
+      },{merge:true});
 
-const value=await ask(
-"Edit message",
-"Update your message",
-true,
-message.text||""
-);
+      const forwarded={...message};
+      delete forwarded.id;
 
-if(value!==null&&value.trim()){
-await updateDoc(ref,{
-text:value.trim(),
-edited:true,
-editedAt:serverTimestamp()
-});
-}
-return;
-}
+      await addDoc(collection(db,"chats",chatId,"messages"),{
+        ...forwarded,
+        senderId:currentUser.uid,
+        forwarded:true,
+        createdAt:serverTimestamp()
+      });
 
-if(choice==="deleteMe"){
-return deleteMessageForMe(message);
-}
+      await ask("Forwarded","Message forwarded successfully.");
+    }
 
-if(choice==="deleteEveryone"){
-
-if(await confirmBox("Delete this message for everyone?")){
-
-await updateDoc(ref,{
-text:"",
-mediaUrl:"",
-deletedForEveryone:true,
-deletedAt:serverTimestamp()
-});
-
-}
-return;
-}
-
-if(choice==="forward"){
-
-const number=await ask(
-"Forward message",
-"Enter recipient's 10-digit mobile number",
-true
-);
-
-if(!number)return;
-
-const found=await findUserByMobile(number.trim());
-
-if(!found){
-await ask("User not found","This user is not registered on Mitra.");
-return;
+  }catch(error){
+    showError(error);
+    await ask("Action error",error.message);
+  }
 }
 
-const recipient=found.data();
-const members=[currentUser.uid,recipient.uid].sort();
-const chatId=members.join("_");
-
-const memberNames=members.map(uid=>
-uid===currentUser.uid?currentProfile.name:recipient.name
-);
-
-await setDoc(
-doc(db,"chats",chatId),
-{
-members,
-memberNames,
-lastMessage:message.text||message.fileName||"Forwarded message",
-lastMessageAt:serverTimestamp()
-},
-{merge:true}
-);
-
-const forwarded={...message};
-delete forwarded.id;
-
-await addDoc(
-collection(db,"chats",chatId,"messages"),
-{
-...forwarded,
-senderId:currentUser.uid,
-forwarded:true,
-createdAt:serverTimestamp()
-}
-);
-
-await ask("Forwarded","Message forwarded successfully.");
-
-}
-
-}catch(error){
-showError(error);
-await ask("Action error",error.message);
-}
-
-}
-
-// Delete message for me
+// Delete message only for me
 async function deleteMessageForMe(message){
-
-try{
-
-const ref=doc(
-db,"chats",activeChat.id,"messages",message.id,
-"deletedFor",currentUser.uid
-);
-
-const old=await getDoc(ref);
-
-if(!old.exists()){
-await setDoc(ref,{
-messageId:message.id,
-deletedAt:serverTimestamp()
-});
+  try{
+    const ref=doc(db,"chats",activeChat.id,"messages",message.id,"deletedFor",currentUser.uid);
+    const old=await getDoc(ref);
+    if(!old.exists()){
+      await setDoc(ref,{messageId:message.id,deletedAt:serverTimestamp()});
+    }
+  }catch(error){
+    await ask("Delete Error",error.message);
+  }
 }
-
-}catch(error){
-await ask("Delete Error",error.message);
-}
-
-}
-
-// Chat list menu
+  // Chat list menu
 async function chatListMenu(chat){
+  const hidden=settings.hiddenChatIds.includes(chat.id);
+  const choice=await showActionSheet("Chat options",[
+    {label:"💬  Open chat",value:"open"},
+    {label:hidden?"🔓  Unhide chat":"🔒  Hide chat",value:"hide"},
+    {label:"🗑️  Delete chat for me",value:"delete",danger:true}
+  ]);
 
-const hidden=settings.hiddenChatIds.includes(chat.id);
+  if(!choice)return;
 
-const choice=await showActionSheet("Chat options",[
-{label:"💬  Open chat",value:"open"},
-{label:hidden?"🔓  Unhide chat":"🔒  Hide chat",value:"hide"},
-{label:"🗑️  Delete chat for me",value:"delete",danger:true}
-]);
-
-if(!choice)return;
-
-if(choice==="open"){
-
-const otherId=chat.members.find(x=>x!==currentUser.uid);
-const idx=chat.members.indexOf(otherId);
-
-openChat(chat,otherId,chat.memberNames?.[idx]||"Mitra User");
-
-}else if(choice==="hide"){
-
-if(settings.hiddenChatIds.includes(chat.id)){
-settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
-}else{
-settings.hiddenChatIds.push(chat.id);
-}
-
-await saveSettings();
-renderChats();
-
-}else if(choice==="delete"){
-
-await deleteChatForMe(chat);
-
-}
-
+  if(choice==="open"){
+    const otherId=chat.members.find(x=>x!==currentUser.uid);
+    const idx=chat.members.indexOf(otherId);
+    openChat(chat,otherId,chat.memberNames?.[idx]||"Mitra User");
+  }else if(choice==="hide"){
+    if(settings.hiddenChatIds.includes(chat.id)){
+      settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
+    }else{
+      settings.hiddenChatIds.push(chat.id);
+    }
+    await saveSettings();
+    renderChats();
+  }else if(choice==="delete"){
+    await deleteChatForMe(chat);
+  }
 }
 
 // Delete complete chat for me
 async function deleteChatForMe(chat){
+  if(!await confirmBox("Remove this entire conversation from your chat list only? The other user's chat will remain."))return;
 
-if(!await confirmBox(
-"Remove this entire conversation from your chat list only? The other user's chat will remain."
-))return;
-
-try{
-
-settings.deletedChatIds=[
-...new Set([...settings.deletedChatIds,chat.id])
-];
-
-settings.hiddenChatIds=
-settings.hiddenChatIds.filter(x=>x!==chat.id);
-
-await saveSettings();
-renderChats();
-
-}catch(error){
-await ask("Delete Error",error.message);
+  try{
+    settings.deletedChatIds=[...new Set([...settings.deletedChatIds,chat.id])];
+    settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
+    await saveSettings();
+    renderChats();
+  }catch(error){
+    await ask("Delete Error",error.message);
+  }
 }
 
-}
-
-// Chat options: direct clickable menu
+// Chat options
 window.chatOptions=async()=>{
+  if(!activeChat)return;
+  const chat=activeChat;
+  const hidden=settings.hiddenChatIds.includes(chat.id);
 
-if(!activeChat)return;
+  const choice=await showActionSheet("Chat Options",[
+    {label:hidden?"🔓  Unhide Chat":"🔒  Hide Chat",value:"hide"},
+    {label:"🗑️  Delete Chat for Me",value:"delete",danger:true},
+    {label:"🧹  Clear Chat for Me",value:"clear",danger:true}
+  ]);
 
-const chat=activeChat;
-const hidden=settings.hiddenChatIds.includes(chat.id);
+  if(!choice)return;
 
-const choice=await showActionSheet("Chat Options",[
-{label:hidden?"🔓  Unhide Chat":"🔒  Hide Chat",value:"hide"},
-{label:"🗑️  Delete Chat for Me",value:"delete",danger:true},
-{label:"🧹  Clear Chat for Me",value:"clear",danger:true}
-]);
+  if(choice==="hide"){
+    if(settings.hiddenChatIds.includes(chat.id)){
+      settings.hiddenChatIds=settings.hiddenChatIds.filter(id=>id!==chat.id);
+    }else{
+      settings.hiddenChatIds.push(chat.id);
+    }
+    await saveSettings();
+    backHome();
 
-if(!choice)return;
+  }else if(choice==="delete"){
+    await deleteChatForMe(chat);
+    backHome();
 
-if(choice==="hide"){
+  }else if(choice==="clear"){
+    if(!await confirmBox("Hide all current messages from your account only?"))return;
 
-if(settings.hiddenChatIds.includes(chat.id)){
-settings.hiddenChatIds=settings.hiddenChatIds.filter(id=>id!==chat.id);
-}else{
-settings.hiddenChatIds.push(chat.id);
-}
+    try{
+      const snap=await getDocs(collection(db,"chats",chat.id,"messages"));
 
-await saveSettings();
-backHome();
+      const tasks=snap.docs.map(async message=>{
+        const hiddenRef=doc(db,"chats",chat.id,"messages",message.id,"deletedFor",currentUser.uid);
+        const old=await getDoc(hiddenRef);
+        if(!old.exists()){
+          await setDoc(hiddenRef,{messageId:message.id,deletedAt:serverTimestamp()});
+        }
+      });
 
-}else if(choice==="delete"){
+      await Promise.all(tasks);
 
-await deleteChatForMe(chat);
-backHome();
+      if(messagesUnsubscribe){
+        messagesUnsubscribe();
+        messagesUnsubscribe=null;
+      }
+      activeChat=null;
+      backHome();
 
-}else if(choice==="clear"){
-
-if(!await confirmBox("Hide all current messages from your account only?"))return;
-
-try{
-
-const snap=await getDocs(
-collection(db,"chats",chat.id,"messages")
-);
-
-for(const message of snap.docs){
-
-const hiddenRef=doc(
-db,"chats",chat.id,"messages",message.id,
-"deletedFor",currentUser.uid
-);
-
-if(!(await getDoc(hiddenRef)).exists()){
-
-await setDoc(hiddenRef,{
-messageId:message.id,
-deletedAt:serverTimestamp()
-});
-
-}
-
-}
-
-if(messagesUnsubscribe){
-messagesUnsubscribe();
-messagesUnsubscribe=null;
-}
-
-activeChat=null;
-backHome();
-
-}catch(error){
-showError(error);
-await ask("Clear Error",error.message);
-}
-
-}
-
+    }catch(error){
+      showError(error);
+      await ask("Clear Error",error.message);
+    }
+  }
 };
 
 // Save settings
 async function saveSettings(){
-
-await setDoc(
-doc(db,"userSettings",currentUser.uid),
-{
-secretSalt:settings.secretSalt,
-secretHash:settings.secretHash,
-hiddenChatIds:settings.hiddenChatIds,
-deletedChatIds:settings.deletedChatIds
-}
-);
-
+  await setDoc(doc(db,"userSettings",currentUser.uid),{
+    secretSalt:settings.secretSalt,
+    secretHash:settings.secretHash,
+    hiddenChatIds:settings.hiddenChatIds,
+    deletedChatIds:settings.deletedChatIds
+  });
 }
 
 // Secret code hash
 async function hashPin(pin,saltHex){
+  const salt=new Uint8Array(saltHex.match(/.{2}/g).map(x=>parseInt(x,16)));
 
-const salt=new Uint8Array(
-saltHex.match(/.{2}/g).map(x=>parseInt(x,16))
-);
+  const material=await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(pin),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
 
-const material=await crypto.subtle.importKey(
-"raw",
-new TextEncoder().encode(pin),
-"PBKDF2",
-false,
-["deriveBits"]
-);
+  const bits=await crypto.subtle.deriveBits({
+    name:"PBKDF2",
+    salt,
+    iterations:150000,
+    hash:"SHA-256"
+  },material,256);
 
-const bits=await crypto.subtle.deriveBits(
-{
-name:"PBKDF2",
-salt,
-iterations:150000,
-hash:"SHA-256"
-},
-material,
-256
-);
-
-return Array.from(new Uint8Array(bits))
-.map(x=>x.toString(16).padStart(2,"0"))
-.join("");
-
+  return Array.from(new Uint8Array(bits))
+    .map(x=>x.toString(16).padStart(2,"0"))
+    .join("");
 }
 
 async function saveNewPin(pin){
-
-const salt=crypto.getRandomValues(new Uint8Array(16));
-
-settings.secretSalt=Array.from(salt)
-.map(x=>x.toString(16).padStart(2,"0"))
-.join("");
-
-settings.secretHash=await hashPin(pin,settings.secretSalt);
-
-await saveSettings();
-
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  settings.secretSalt=Array.from(salt)
+    .map(x=>x.toString(16).padStart(2,"0"))
+    .join("");
+  settings.secretHash=await hashPin(pin,settings.secretSalt);
+  await saveSettings();
 }
 
 // Change secret code
 window.changePin=async()=>{
+  const pin=await ask("Secret Code","Enter a new 6-digit code",true);
+  if(pin===null)return;
 
-const pin=await ask(
-"Secret Code",
-"Enter a new 6-digit code",
-true
-);
+  if(!/^[0-9]{6}$/.test(pin)){
+    await ask("Invalid Code","Code must contain exactly 6 digits.");
+    return;
+  }
 
-if(pin===null)return;
-
-if(!/^[0-9]{6}$/.test(pin)){
-await ask("Invalid Code","Code must contain exactly 6 digits.");
-return;
-}
-
-try{
-await saveNewPin(pin);
-await ask("Success","Secret Code updated.");
-}catch(error){
-await ask("Error",error.message);
-}
-
+  try{
+    await saveNewPin(pin);
+    await ask("Success","Secret Code updated.");
+  }catch(error){
+    await ask("Error",error.message);
+  }
 };
 
 // Reset secret code
 window.resetPin=async()=>{
+  if(!await confirmBox("Reset Secret Code and remove your hidden chats from your list? The other user's chats will remain."))return;
 
-if(!await confirmBox(
-"Reset Secret Code and remove your hidden chats from your list? The other user's chats will remain."
-))return;
-
-try{
-
-settings.deletedChatIds=[
-...new Set([...settings.deletedChatIds,...settings.hiddenChatIds])
-];
-
-settings.hiddenChatIds=[];
-settings.secretSalt="";
-settings.secretHash="";
-
-await saveSettings();
-
-showingHidden=false;
-renderChats();
-
-await ask("Success","Secret Code reset.");
-
-}catch(error){
-await ask("Error",error.message);
-}
-
+  try{
+    settings.deletedChatIds=[...new Set([...settings.deletedChatIds,...settings.hiddenChatIds])];
+    settings.hiddenChatIds=[];
+    settings.secretSalt="";
+    settings.secretHash="";
+    await saveSettings();
+    showingHidden=false;
+    renderChats();
+    await ask("Success","Secret Code reset.");
+  }catch(error){
+    await ask("Error",error.message);
+  }
 };
 
 // Search and unlock hidden chats
 window.searchEnter=async event=>{
+  if(event.key!=="Enter")return;
+  const value=$("search").value.trim();
 
-if(event.key!=="Enter")return;
+  if(/^[0-9]{6}$/.test(value)){
+    if(!settings.secretHash){
+      await ask("No Secret Code","Create a Secret Code in Settings first.");
+      return;
+    }
 
-const value=$("search").value.trim();
+    try{
+      const hash=await hashPin(value,settings.secretSalt);
+      if(hash===settings.secretHash){
+        showingHidden=true;
+        $("search").value="";
+        renderChats();
+      }else{
+        await ask("Incorrect Code","Wrong Secret Code.");
+      }
+    }catch(error){
+      await ask("Error",error.message);
+    }
 
-if(/^[0-9]{6}$/.test(value)){
-
-if(!settings.secretHash){
-await ask("No Secret Code","Create a Secret Code in Settings first.");
-return;
-}
-
-try{
-
-const hash=await hashPin(value,settings.secretSalt);
-
-if(hash===settings.secretHash){
-
-showingHidden=true;
-$("search").value="";
-renderChats();
-
-}else{
-await ask("Incorrect Code","Wrong Secret Code.");
-}
-
-}catch(error){
-await ask("Error",error.message);
-}
-
-}else if(/^[0-9]{10}$/.test(value)){
-
-$("search").value="";
-await createChatWithNumber(value);
-
-}
-
+  }else if(/^[0-9]{10}$/.test(value)){
+    $("search").value="";
+    await createChatWithNumber(value);
+  }
 };
-
-// Settings screen
+  // Settings screen
 window.showSettings=()=>{
-
-$("homeScreen").style.display="none";
-$("settingsPanel").style.display="block";
-$("homeHeader").style.display="flex";
-$("bottomNav").style.display="flex";
-
+  $("homeScreen").style.display="none";
+  $("settingsPanel").style.display="block";
+  $("homeHeader").style.display="flex";
+  $("bottomNav").style.display="flex";
 };
 
 window.closeSettings=()=>{
-
-$("settingsPanel").style.display="none";
-$("homeScreen").style.display="block";
-renderChats();
-
+  $("settingsPanel").style.display="none";
+  $("homeScreen").style.display="block";
+  renderChats();
 };
 
 window.showNormalChats=()=>{
-
-showingHidden=false;
-$("search").value="";
-$("search").placeholder="⌕ Search chats or enter secret code...";
-closeSettings();
-
+  showingHidden=false;
+  $("search").value="";
+  $("search").placeholder="⌕ Search chats or enter secret code...";
+  closeSettings();
 };
 
 // Edit profile
 window.changeProfile=async()=>{
+  const name=await ask(
+    "Edit Profile",
+    "Enter your display name",
+    true,
+    currentProfile.name||""
+  );
 
-const name=await ask(
-"Edit Profile",
-"Enter your display name",
-true,
-currentProfile.name||""
-);
+  if(name===null||!name.trim())return;
 
-if(name===null||!name.trim())return;
-
-try{
-
-await updateDoc(
-doc(db,"users",currentUser.uid),
-{name:name.trim()}
-);
-
-await updateDoc(
-doc(db,"publicUsers",currentUser.uid),
-{name:name.trim()}
-);
-
-currentProfile.name=name.trim();
-$("profileName").textContent=name.trim();
-
-await ask("Success","Profile name updated.");
-
-}catch(error){
-await ask("Profile Error",error.message);
-}
-
+  try{
+    await updateDoc(doc(db,"users",currentUser.uid),{name:name.trim()});
+    await updateDoc(doc(db,"publicUsers",currentUser.uid),{name:name.trim()});
+    currentProfile.name=name.trim();
+    $("profileName").textContent=name.trim();
+    await ask("Success","Profile name updated.");
+  }catch(error){
+    await ask("Profile Error",error.message);
+  }
 };
 
 // Logout
 window.logout=async()=>{
+  if(!await confirmBox("Logout from Mitra?"))return;
 
-if(!await confirmBox("Logout from Mitra?"))return;
-
-try{
-
-if(chatsUnsubscribe)chatsUnsubscribe();
-if(messagesUnsubscribe)messagesUnsubscribe();
-
-await signOut(auth);
-location.href="login.html";
-
-}catch(error){
-await ask("Logout Error",error.message);
-}
-
+  try{
+    if(chatsUnsubscribe)chatsUnsubscribe();
+    if(messagesUnsubscribe)messagesUnsubscribe();
+    await signOut(auth);
+    location.href="login.html";
+  }catch(error){
+    await ask("Logout Error",error.message);
+  }
 };
 
 </script>
 
 <script>
 if("serviceWorker" in navigator){
-window.addEventListener("load",()=>{
-navigator.serviceWorker.register("./sw.js")
-.then(()=>console.log("Mitra Service Worker Registered"))
-.catch(error=>console.error("SW Error:",error));
-});
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("./sw.js")
+      .then(()=>console.log("Mitra Service Worker Registered"))
+      .catch(error=>console.error("SW Error:",error));
+  });
 }
 </script>
 
