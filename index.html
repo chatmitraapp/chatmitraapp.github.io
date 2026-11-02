@@ -221,6 +221,8 @@ function ask(title,text,input=false,value=""){
     $("dialogTitle").textContent=title;
     $("dialogText").textContent=text;
     $("dialogInput").style.display=input?"block":"none";
+      $("dialogActions").innerHTML='<button onclick="closeDialog(false)">Cancel</button><button class="primary" onclick="closeDialog(true)">OK</button>';
+$("dialogActions").style.display="flex";
     $("dialogInput").value=value;
     $("overlay").style.display="flex";
     setTimeout(()=>input&&$("dialogInput").focus(),100);
