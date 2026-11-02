@@ -4,6 +4,8 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth
 
 import { getFirestore } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
+import { getStorage } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-storage.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBymLPHlcfJWG1yenQH04KAv-Wig8NaEX8",
   authDomain: "mitra-e9a64.firebaseapp.com",
@@ -19,4 +21,7 @@ export const auth = getAuth(app);
 
 export const db = getFirestore(app);
 
+export const storage = getStorage(app);
+
 console.log("Mitra Firebase Connected");
+console.log("Mitra Firebase Storage Connected");
