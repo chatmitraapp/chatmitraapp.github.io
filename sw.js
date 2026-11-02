@@ -20,7 +20,7 @@ importScripts(
 
 // Firebase configuration
 firebase.initializeApp({
-  apiKey: "AIzaSySyBymLPHlcfJWG1yenQH04KAv-Wig8NaEX8",
+  apiKey: "AIzaSyBymLPHlcfJWG1yenQH04KAv-Wig8NaEX8",
   authDomain: "mitra-e9a64.firebaseapp.com",
   projectId: "mitra-e9a64",
   storageBucket: "mitra-e9a64.firebasestorage.app",
