@@ -395,7 +395,20 @@ function formatLastSeen(timestamp) {
     minute: "2-digit"
   });
 }
+function formatMessageTime(timestamp) {
+  if (!timestamp) return "";
 
+  const date = typeof timestamp.toDate === "function"
+    ? timestamp.toDate()
+    : new Date(timestamp);
+
+  if (isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
 function updateChatPresence(uid) {
   const el = $("chatPresence");
 
@@ -674,10 +687,10 @@ updateChatPresence(otherId);
 
           bubble.innerHTML = `
             <div>${contentHTML}</div>
-            <small>
-              ${m.senderId === currentUser.uid ? "You" : "Mitra User"}
-              ${m.edited ? "· edited" : ""}
-            </small>
+           <small>
+  ${formatMessageTime(m.createdAt)}
+  ${m.edited ? " · edited" : ""}
+</small>
             ${
               item.reactionHTML
                 ? `<div class="reactionLine">${item.reactionHTML}</div>`
