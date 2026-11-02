@@ -414,10 +414,6 @@ function updateChatPresence(uid) {
     : formatLastSeen(presence.lastChanged);
 }
 
-  el.textContent = presence.state === "online"
-    ? "🟢 Online"
-    : formatLastSeen(presence.lastChanged);
-}
 function filterChats() {
   const searchInput = $("search");
   if (!searchInput) return;
