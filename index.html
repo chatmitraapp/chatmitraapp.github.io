@@ -248,6 +248,54 @@ async function setupMitraForegroundMessaging(){
   }catch(error){ console.warn("Mitra foreground notifications unavailable:",error); }
 }
 
+// Restore notification status after login/reload without showing
+// the permission prompt again.
+window.restoreMitraNotificationStatus = async function(){
+  const statusEl = $("notificationStatus");
+  if (!statusEl) return;
+
+  if (!currentUser) {
+    statusEl.textContent = "Notifications: Not enabled";
+    return;
+  }
+
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      statusEl.textContent = "Notifications: Not enabled";
+      return;
+    }
+    if (!(await isSupported())) {
+      statusEl.textContent = "Notifications: Not supported on this device";
+      return;
+    }
+
+    if (!mitraMessaging) mitraMessaging = getMessaging();
+    const registration = await navigator.serviceWorker.ready;
+    const token = await getToken(mitraMessaging, {
+      vapidKey: MITRA_VAPID_KEY,
+      serviceWorkerRegistration: registration
+    });
+
+    if (!token) {
+      statusEl.textContent = "Notifications: Not enabled";
+      return;
+    }
+
+    await setDoc(doc(db, "users", currentUser.uid, "devices", "web"), {
+      token: token,
+      platform: "web",
+      app: "mitra",
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    statusEl.textContent = "Notifications: Enabled on this device";
+    await setupMitraForegroundMessaging();
+  } catch (error) {
+    console.warn("Could not restore Mitra notification status:", error);
+    statusEl.textContent = "Notifications: Status could not be verified";
+  }
+};
+
 window.enableMitraNotifications = async function(){
   try{
     if(!currentUser) throw new Error("Please login first.");
@@ -420,6 +468,7 @@ onAuthStateChanged(auth,async user=>{
       return;
     }
     currentUser=user;
+    restoreMitraNotificationStatus();
 setupMitraForegroundMessaging();
 startPresence(user.uid);
 status("Loading your profile...");
