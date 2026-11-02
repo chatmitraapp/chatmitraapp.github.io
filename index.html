@@ -140,8 +140,9 @@ oninput="filterChats()" onkeydown="searchEnter(event)">
 <div class="notice">Loading messages...</div>
 </div>
 <div class="composer">
-<input id="messageInput" placeholder="Type a message..."
-onkeydown="if(event.key==='Enter')sendMessage()">
+<button type="button" title="Attach media" onclick="document.getElementById('mediaInput').click()">＋</button>
+<input id="mediaInput" type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden onchange="sendMedia(this.files[0]);this.value=''">
+<input id="messageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()">
 <button onclick="sendMessage()">➤</button>
 </div>
 </div>
@@ -167,7 +168,7 @@ onkeydown="if(event.key==='Enter')sendMessage()">
 
 <script type="module">
 
-import {auth,db} from './firebase.js';
+import {auth,db,storage} from './firebase.js';
 
 import {
 onAuthStateChanged,
@@ -189,6 +190,9 @@ where,
 onSnapshot,
 serverTimestamp
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+import { ref as storageRef, uploadBytes, getDownloadURL }
+from "https://www.gstatic.com/firebasejs/13.1.0/firebase-storage.js";
 
 let currentUser=null;
 let currentProfile=null;
@@ -688,8 +692,22 @@ const reactionHTML=Object.entries(reactionCounts)
   .map(([emoji,count])=>emoji+" "+count)
   .join(" ");
 
+let contentHTML = deleted ? "This message was deleted" : escapeHTML(m.text || "");
+if (!deleted && m.type === "media" && m.mediaUrl) {
+  const url = escapeHTML(m.mediaUrl);
+  const fileName = escapeHTML(m.fileName || "Attachment");
+  if ((m.contentType || "").startsWith("image/")) {
+    contentHTML = `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${fileName}" style="display:block;max-width:min(100%,280px);max-height:320px;border-radius:12px"></a>`;
+  } else if ((m.contentType || "").startsWith("video/")) {
+    contentHTML = `<video controls playsinline preload="metadata" style="display:block;max-width:100%;max-height:320px;border-radius:12px"><source src="${url}" type="${escapeHTML(m.contentType)}"></video>`;
+  } else if ((m.contentType || "").startsWith("audio/")) {
+    contentHTML = `<audio controls preload="metadata" style="max-width:100%"><source src="${url}" type="${escapeHTML(m.contentType)}"></audio>`;
+  } else {
+    contentHTML = `<a href="${url}" target="_blank" rel="noopener" download="${fileName}">📎 ${fileName}</a>`;
+  }
+}
 bubble.innerHTML=`
-  <div>${deleted?"This message was deleted":escapeHTML(m.text)}</div>
+  <div>${contentHTML}</div>
   <small>${m.senderId===currentUser.uid?"You":"Mitra User"} ${m.edited?"· edited":""}</small>
   ${reactionHTML?`<div class="reactionLine">${reactionHTML}</div>`:""}
 `;
@@ -816,6 +834,42 @@ await ask("Message Error",error.message);
 
 };
 
+// Upload and send an attachment through Firebase Storage.
+window.sendMedia = async function(file) {
+  if (!file || !activeChat || !currentUser) return;
+  if (file.size > 25 * 1024 * 1024) {
+    await ask("File too large","Please choose a file smaller than 25 MB.");
+    return;
+  }
+  if (!storage) {
+    await ask("Storage unavailable","Firebase Storage is not configured in firebase.js.");
+    return;
+  }
+  try {
+    status("Uploading attachment...");
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path = `chatMedia/${activeChat.id}/${currentUser.uid}/${Date.now()}_${safeName}`;
+    const fileRef = storageRef(storage,path);
+    await uploadBytes(fileRef,file,{contentType:file.type || "application/octet-stream"});
+    const mediaUrl = await getDownloadURL(fileRef);
+    await addDoc(collection(db,"chats",activeChat.id,"messages"),{
+      senderId:currentUser.uid,type:"media",mediaUrl,storagePath:path,
+      fileName:file.name,contentType:file.type || "application/octet-stream",
+      fileSize:file.size,createdAt:serverTimestamp()
+    });
+    await updateDoc(doc(db,"chats",activeChat.id),{
+      lastMessage:file.type.startsWith("image/")?"📷 Photo":
+        file.type.startsWith("video/")?"🎥 Video":
+        file.type.startsWith("audio/")?"🎵 Audio":"📎 "+file.name,
+      lastMessageAt:serverTimestamp()
+    });
+    status("Connected to Mitra");
+  } catch(error) {
+    showError(error);
+    await ask("Upload failed",error.message);
+  }
+};
+
 // Emoji reaction
 async function reactionMenu(message){
 
@@ -861,30 +915,55 @@ await ask("Reaction Error",error.message);
 
 }
 
-// Message options
-row._longPressed=false;
-row.onclick=()=>{
-if(row._longPressed){row._longPressed=false;return;}
-openChat(c,otherId,name);
-};
+// Directly clickable message actions opened by long press.
+async function messageMenu(message) {
+  if (!activeChat || message.deletedForEveryone) return;
+  const mine = message.senderId === currentUser.uid;
+  const actions = [
+    ...(mine && message.type === "text" ? [{label:"✏️  Edit message",value:"edit"}] : []),
+    {label:"📋  Copy",value:"copy"},
+    {label:"↪️  Forward",value:"forward"},
+    {label:"🗑️  Delete for me",value:"deleteMe",danger:true},
+    ...(mine ? [{label:"❌  Delete for everyone",value:"deleteEveryone",danger:true}] : [])
+  ];
+  const choice = await showActionSheet("Message options", actions);
+  if (!choice) return;
+  try {
+    const ref = doc(db,"chats",activeChat.id,"messages",message.id);
+    if (choice === "copy") {
+      await navigator.clipboard.writeText(message.text || message.fileName || message.mediaUrl || "");
+      return;
+    }
+    if (choice === "edit") {
+      const value = await ask("Edit message","Update your message",true,message.text || "");
+      if (value !== null && value.trim()) await updateDoc(ref,{text:value.trim(),edited:true});
+      return;
+    }
+    if (choice === "deleteMe") return deleteMessageForMe(message);
+    if (choice === "deleteEveryone") {
+      if (await confirmBox("Delete this message for everyone?")) {
+        await updateDoc(ref,{deletedForEveryone:true,text:"",mediaUrl:"",deletedAt:serverTimestamp()});
+      }
+      return;
+    }
+    if (choice === "forward") {
+      const number = await ask("Forward message","Enter recipient's 10-digit mobile number",true);
+      if (!number) return;
+      const found = await findUserByMobile(number.trim());
+      if (!found) return ask("User not found","This user is not registered on Mitra.");
+      const recipient = found.data();
+      const members = [currentUser.uid,recipient.uid].sort();
+      const chatId = members.join("_");
+      const memberNames = members.map(uid=>uid===currentUser.uid?currentProfile.name:recipient.name);
+      await setDoc(doc(db,"chats",chatId),{members,memberNames,lastMessage:message.text||message.fileName||"Forwarded media",lastMessageAt:serverTimestamp()},{merge:true});
+      const forwarded = {...message};
+      delete forwarded.id;
+      await addDoc(collection(db,"chats",chatId,"messages"),{...forwarded,senderId:currentUser.uid,forwarded:true,createdAt:serverTimestamp()});
+      await ask("Forwarded","Message forwarded successfully.");
+    }
+  } catch(error) { showError(error); await ask("Action error",error.message); }
+}
 
-row.addEventListener("contextmenu",e=>{
-e.preventDefault();
-row._longPressed=true;
-chatListMenu(c);
-});
-
-row.addEventListener("touchstart",()=>{
-row._longPressed=false;
-longPressTimer=setTimeout(()=>{
-row._longPressed=true;
-chatListMenu(c);
-},650);
-},{passive:true});
-
-["touchend","touchmove","touchcancel"].forEach(ev=>{
-row.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
-});
 // Delete message for me
 async function deleteMessageForMe(message){
 
