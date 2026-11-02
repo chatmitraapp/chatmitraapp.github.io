@@ -12,7 +12,12 @@ import { rtdb } from "./firebase.js";
 let connectionListener = null;
 
 export function startPresence(uid) {
-  if (!uid) return;
+  console.log("Mitra startPresence called:", uid);
+
+  if (!uid) {
+    console.error("Presence UID missing");
+    return;
+  }
 
   const connectedRef = ref(rtdb, ".info/connected");
   const statusRef = ref(rtdb, "status/" + uid);
@@ -22,7 +27,10 @@ export function startPresence(uid) {
   }
 
   connectionListener = onValue(connectedRef, async (snapshot) => {
+    console.log("Firebase Connection:", snapshot.val());
+
     if (snapshot.val() !== true) return;
+
     console.log("Mitra Presence Connected:", uid);
 
     try {
@@ -35,11 +43,14 @@ export function startPresence(uid) {
         state: "online",
         lastChanged: serverTimestamp()
       });
+
+      console.log("Mitra Online Status Saved");
     } catch (error) {
       console.error("Presence Error:", error);
     }
   });
 }
+
 export async function stopPresence(uid) {
   if (!uid) return;
 
@@ -50,6 +61,8 @@ export async function stopPresence(uid) {
       state: "offline",
       lastChanged: serverTimestamp()
     });
+
+    console.log("Mitra Offline Status Saved");
   } catch (error) {
     console.error("Offline Status Error:", error);
   }
