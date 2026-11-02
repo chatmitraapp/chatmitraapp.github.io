@@ -316,7 +316,7 @@ onAuthStateChanged(auth,async user=>{
       return;
     }
     currentUser=user;
-startPresence(user.uid);
+//startPresence(user.uid);
 status("Loading your profile...");
 $("errorInfo").textContent="";
     const profileSnap=await getDoc(doc(db,"users",user.uid));
