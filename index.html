@@ -176,7 +176,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 </div>
 <button type="button" class="composerEmoji" onclick="openComposerEmojiPicker()" title="Emoji">☺</button>
 <input id="messageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
-<button type="button" onclick="sendMessage()">➤</button>
+<button type="button" onpointerdown="event.preventDefault()" onclick="sendMessage()">➤</button>
 </div>
 </div>
 
@@ -982,6 +982,9 @@ window.sendMessage=async()=>{
   const text=input.value.trim();
   if(!text||!activeChat||!currentUser)return;
   input.value="";
+  // Keep the message field focused so the mobile keyboard stays open.
+  // Refocus synchronously while the Send/Enter user gesture is still active.
+  try{ input.focus({preventScroll:true}); }catch(_){ input.focus(); }
   try{
     const messageData = {
       senderId:currentUser.uid,
