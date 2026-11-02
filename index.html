@@ -44,6 +44,21 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .bubble{max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere}
 .bubble.mine{margin-left:auto;background:var(--accent);color:white}
 .bubble small{display:block;font-size:10px;opacity:.75;margin-top:5px}
+.dateSeparator{
+  width:fit-content;
+  margin:16px auto;
+  padding:6px 12px;
+  border-radius:10px;
+  background:var(--card);
+  color:var(--muted);
+  font-size:11px;
+  box-shadow:0 1px 3px #0001;
+}
+.messageTicks{font-weight:bold;letter-spacing:-2px;margin-left:3px;white-space:nowrap}
+.messageTicks.sent{color:#aeb4c0}
+.messageTicks.delivered{color:#aeb4c0}
+.messageTicks.seen{color:#55b7ff}
+
 .bubble.deleted{font-style:italic;opacity:.7}
 .reactionLine{font-size:17px;margin-top:5px}
 .composer{position:fixed;bottom:0;left:0;right:0;padding:10px;display:flex;gap:8px;background:var(--card);z-index:3}
@@ -409,6 +424,47 @@ function formatMessageTime(timestamp) {
     minute: "2-digit"
   });
 }
+
+function getMessageDate(timestamp) {
+  if (!timestamp) return null;
+  const date = typeof timestamp.toDate === "function"
+    ? timestamp.toDate()
+    : new Date(timestamp);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function formatMessageDate(timestamp) {
+  const date = getMessageDate(timestamp);
+  if (!date) return "Date unavailable";
+
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const sameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  if (sameDay(date, today)) return "Today";
+  if (sameDay(date, yesterday)) return "Yesterday";
+
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric"
+  });
+}
+
+function getMessageDayKey(timestamp) {
+  const date = getMessageDate(timestamp);
+  if (!date) return "unknown";
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")
+  ].join("-");
+}
 function updateChatPresence(uid) {
   const el = $("chatPresence");
 
@@ -662,11 +718,21 @@ updateChatPresence(otherId);
           return timeA - timeB;
         });
 
-        // Build a fresh list, so the same message cannot appear twice.
+        // Build a fresh list, with one date separator per calendar day.
         const fragment = document.createDocumentFragment();
+        let previousDayKey = null;
 
         validMessages.forEach(item => {
           const m = item.message;
+          const dayKey = getMessageDayKey(m.createdAt);
+
+          if (dayKey !== previousDayKey) {
+            const separator = document.createElement("div");
+            separator.className = "dateSeparator";
+            separator.textContent = formatMessageDate(m.createdAt);
+            fragment.appendChild(separator);
+            previousDayKey = dayKey;
+          }
           const deleted = m.deletedForEveryone === true;
 
           const bubble = document.createElement("div");
@@ -685,12 +751,24 @@ updateChatPresence(otherId);
             ? "This message was deleted"
             : escapeHTML(m.text || "");
 
+          let receiptHTML = "";
+          if (m.senderId === currentUser.uid) {
+            if (m.seenAt) {
+              receiptHTML = '<span class="messageTicks seen" title="Seen">✓✓</span>';
+            } else if (m.deliveredAt) {
+              receiptHTML = '<span class="messageTicks delivered" title="Delivered">✓✓</span>';
+            } else {
+              receiptHTML = '<span class="messageTicks sent" title="Sent">✓</span>';
+            }
+          }
+
           bubble.innerHTML = `
             <div>${contentHTML}</div>
-           <small>
-  ${formatMessageTime(m.createdAt)}
-  ${m.edited ? " · edited" : ""}
-</small>
+            <small>
+              ${formatMessageTime(m.createdAt)}
+              ${m.edited ? " · edited" : ""}
+              ${receiptHTML}
+            </small>
             ${
               item.reactionHTML
                 ? `<div class="reactionLine">${item.reactionHTML}</div>`
@@ -707,6 +785,32 @@ updateChatPresence(otherId);
 
         // Replace the complete message list in one operation.
         box.replaceChildren(fragment);
+
+        // Update receipts in the background; never wait for these writes
+        // before rendering messages.
+        validMessages.forEach(item => {
+          const m = item.message;
+          if (m.senderId === currentUser.uid) return;
+
+          const messageRef = doc(
+            db, "chats", currentChatId, "messages", m.id
+          );
+          const receiptUpdate = {};
+
+          if (!m.deliveredAt) {
+            receiptUpdate.deliveredAt = serverTimestamp();
+          }
+          if (!m.seenAt) {
+            receiptUpdate.seenAt = serverTimestamp();
+            receiptUpdate.seenByUid = currentUser.uid;
+          }
+
+          if (Object.keys(receiptUpdate).length) {
+            updateDoc(messageRef, receiptUpdate).catch(error => {
+              console.warn("Mitra receipt update failed:", error);
+            });
+          }
+        });
 
         if (validMessages.length === 0) {
           box.innerHTML = '<div class="notice">Say hello 👋</div>';
@@ -856,6 +960,9 @@ async function messageMenu(message){
 
       const forwarded={...message};
       delete forwarded.id;
+      delete forwarded.deliveredAt;
+      delete forwarded.seenAt;
+      delete forwarded.seenByUid;
 
       await addDoc(collection(db,"chats",chatId,"messages"),{
         ...forwarded,
