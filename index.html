@@ -156,7 +156,8 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 import {auth,db} from './firebase.js';
 import {onAuthStateChanged,signOut,updatePassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
-
+import { startPresence } from "./presence.js";
+    
 let currentUser=null;
 let currentProfile=null;
 let allChats=[];
@@ -314,8 +315,10 @@ onAuthStateChanged(auth,async user=>{
       $("chats").innerHTML='<div class="notice">Please <a href="login.html">login</a> to use Mitra.</div>';
       return;
     }
-    currentUser=user;status("Loading your profile...");
-    $("errorInfo").textContent="";
+    currentUser=user;
+startPresence(user.uid);
+status("Loading your profile...");
+$("errorInfo").textContent="";
     const profileSnap=await getDoc(doc(db,"users",user.uid));
     if(!profileSnap.exists()){status("Profile not found.");return;}
     currentProfile=profileSnap.data();
