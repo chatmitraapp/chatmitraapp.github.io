@@ -127,7 +127,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <div class="avatar" id="chatAvatar">M</div>
 <div class="details">
 <div class="name" id="chatName">Chat</div>
-<div class="message">Mitra Messenger</div>
+<div class="message" id="chatPresence">Mitra Messenger</div>
 </div>
 <button onclick="chatOptions()">⋮</button>
 </div>
@@ -371,26 +371,30 @@ function listenPresence(uid) {
       lastChanged: null
     };
 
-    renderChats();
+   renderChats();
+updateChatPresence(uid);
   });
 
   presenceListeners.set(uid, unsubscribe);
 }
 
-function formatLastSeen(timestamp) {
-  if (!timestamp) return "Last seen unavailable";
+function updateChatPresence(uid) {
+  const el = $("chatPresence");
 
-  const date = new Date(timestamp);
-  if (isNaN(date.getTime())) return "Last seen unavailable";
+  if (!el || !activeChat || !currentUser) return;
 
-  return "Last seen " + date.toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  const otherId = activeChat.members?.find(
+    id => id !== currentUser.uid
+  );
+
+  if (otherId !== uid) return;
+
+  const presence = presenceCache[uid] || {};
+
+  el.textContent = presence.state === "online"
+    ? "🟢 Online"
+    : formatLastSeen(presence.lastChanged);
 }
-
 function filterChats() {
   const searchInput = $("search");
   if (!searchInput) return;
@@ -520,6 +524,8 @@ function openChat(chat, otherId, name) {
 
   $("chatName").textContent = name || "Mitra User";
   $("chatAvatar").textContent = (name || "M").charAt(0).toUpperCase();
+    listenPresence(otherId);
+updateChatPresence(otherId);
 
   if (messagesUnsubscribe) {
     messagesUnsubscribe();
