@@ -620,8 +620,12 @@ function listenChats(){
         );
 
         const index=latestChat.members?.indexOf(otherId);
+        // Prefer the freshly fetched public profile name over the older
+        // memberNames value stored in the chat document.
         const latestName=
-          latestChat.memberNames?.[index]||"Mitra User";
+          publicNameCache.get(otherId)||
+          latestChat.memberNames?.[index]||
+          "Mitra User";
 
         $("chatName").textContent=latestName;
         $("chatAvatar").textContent=
