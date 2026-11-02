@@ -18,7 +18,10 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 export const db = getFirestore(app);
-export const rtdb = getDatabase(app);
+export const rtdb = getDatabase(
+  app,
+  "https://mitra-e9a64-default-rtdb.asia-southeast1.firebasedatabase.app"
+);
 export const storage = getStorage(app);
 
 console.log("Mitra Firebase Connected");
