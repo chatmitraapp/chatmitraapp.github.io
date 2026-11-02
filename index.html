@@ -561,11 +561,50 @@ $("errorInfo").textContent="";
 
 function listenChats(){
   status("Loading chats...");
-  const q=query(collection(db,"chats"),where("members","array-contains",currentUser.uid));
-  chatsUnsubscribe=onSnapshot(q,snapshot=>{
+
+  const q=query(
+    collection(db,"chats"),
+    where("members","array-contains",currentUser.uid)
+  );
+
+  chatsUnsubscribe=onSnapshot(q,async snapshot=>{
     allChats=snapshot.docs.map(d=>({id:d.id,...d.data()}));
-    renderChats();status("Connected to Mitra");$("errorInfo").textContent="";
-  },error=>{status("Chat loading error");showError(error);});
+
+    let restored=false;
+
+    allChats.forEach(chat=>{
+      if(!settings.deletedChatIds.includes(chat.id))return;
+
+      const resetAt=Number(settings.chatResetAt?.[chat.id]||0);
+      const lastMessageAt=chat.lastMessageAt?.toMillis?.()||0;
+
+      if(resetAt>0 && lastMessageAt>resetAt){
+        settings.deletedChatIds=
+          settings.deletedChatIds.filter(id=>id!==chat.id);
+
+        if(settings.chatResetAt){
+          delete settings.chatResetAt[chat.id];
+        }
+
+        restored=true;
+      }
+    });
+
+    if(restored){
+      try{
+        await saveSettings();
+      }catch(error){
+        showError(error);
+      }
+    }
+
+    renderChats();
+    status("Connected to Mitra");
+    $("errorInfo").textContent="";
+  },error=>{
+    status("Chat loading error");
+    showError(error);
+  });
 }
 
 function listenPresence(uid) {
