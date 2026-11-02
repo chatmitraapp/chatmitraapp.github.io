@@ -170,6 +170,8 @@ let chatsUnsubscribe=null;
 let messagesUnsubscribe=null;
 let showingHidden=false;
 let dialogResolve=null;
+    let presenceListeners = new Map();
+let presenceCache = {};
 
 function attachLongPress(element,callback){
   let timer=null,startX=0,startY=0,fired=false;
