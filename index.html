@@ -153,10 +153,14 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 </div>
 
 <script type="module">
-import {auth,db} from './firebase.js';
+import {auth,db,rtdb} from './firebase.js';
 import {onAuthStateChanged,signOut,updatePassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 import { startPresence, stopPresence } from "./presence.js";
+    import {
+  ref,
+  onValue
+} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
     
 let currentUser=null;
 let currentProfile=null;
