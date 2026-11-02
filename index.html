@@ -234,46 +234,65 @@ window.closeDialog=ok=>{
 };
 async function confirmBox(text){return (await ask("Mitra",text))===true;}
 
+
 function showActionSheet(title,actions){
   return new Promise(resolve=>{
     const overlay=$("overlay");
     $("dialogTitle").textContent=title;
     $("dialogText").textContent="";
     $("dialogInput").style.display="none";
+
     const old=$("dialogActions");
-    old.innerHTML="";
+
+    // Keep original Cancel and OK buttons intact
     old.style.display="none";
+
     let sheet=document.getElementById("actionSheet");
+
     if(!sheet){
       sheet=document.createElement("div");
       sheet.id="actionSheet";
       sheet.className="actionSheet";
       old.parentNode.insertBefore(sheet,old);
     }
+
     sheet.innerHTML="";
+
     actions.forEach(action=>{
       const button=document.createElement("button");
       button.type="button";
       button.textContent=action.label;
-      if(action.danger)button.classList.add("danger");
+
+      if(action.danger){
+        button.classList.add("danger");
+      }
+
       button.onclick=()=>{
-        overlay.style.display="none";sheet.innerHTML="";
-        old.style.display="flex";resolve(action.value);
+        overlay.style.display="none";
+        sheet.innerHTML="";
+        old.style.display="flex";
+        resolve(action.value);
       };
+
       sheet.appendChild(button);
     });
+
     const cancel=document.createElement("button");
-    cancel.type="button";cancel.className="cancelAction";
+    cancel.type="button";
+    cancel.className="cancelAction";
     cancel.textContent="Cancel";
+
     cancel.onclick=()=>{
-      overlay.style.display="none";sheet.innerHTML="";
-      old.style.display="flex";resolve(null);
+      overlay.style.display="none";
+      sheet.innerHTML="";
+      old.style.display="flex";
+      resolve(null);
     };
+
     sheet.appendChild(cancel);
     overlay.style.display="flex";
   });
 }
-
 window.toggleTheme=()=>{
   document.body.classList.toggle("dark");
   localStorage.setItem("mitraTheme",document.body.classList.contains("dark")?"dark":"light");
