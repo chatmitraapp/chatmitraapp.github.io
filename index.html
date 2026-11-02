@@ -167,6 +167,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <p id="profileMobile" class="message"></p>
 </div>
 <div class="settingRow" onclick="changeProfile()">✏️ Edit Profile</div>
+<div class="settingRow" onclick="changeAccountPassword()">🔑 Change Password</div>
 <div class="settingRow" onclick="toggleTheme()">◐ Change Theme</div>
 <div class="settingRow" onclick="changePin()">🔐 Change Secret Code</div>
 <div class="settingRow" onclick="resetPin()">♻️ Reset Secret Code</div>
@@ -234,7 +235,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <script type="module">
 import {auth,db,rtdb} from './firebase.js';
 import {getMessaging,isSupported,onMessage,getToken} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-messaging.js";
-import {onAuthStateChanged,signOut,updatePassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import {onAuthStateChanged,signOut,updatePassword,EmailAuthProvider,reauthenticateWithCredential} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 import { startPresence, stopPresence } from "./presence.js";
     import {
@@ -1927,6 +1928,94 @@ window.showNormalChats=()=>{
   $("search").value="";
   $("search").placeholder="⌕ Search chats or enter secret code...";
   closeSettings();
+};
+
+// Change Firebase account password
+window.changeAccountPassword=async()=>{
+  if(!currentUser || !currentUser.email){
+    await ask("Change Password","This account does not have an email/password login.");
+    return;
+  }
+
+  const providerIds=(currentUser.providerData||[]).map(p=>p.providerId);
+  if(!providerIds.includes("password")){
+    await ask(
+      "Change Password",
+      "This account uses a Google or another sign-in provider. Change its password through that provider."
+    );
+    return;
+  }
+
+  const passwordInput=$("dialogInput");
+  const previousType=passwordInput.type;
+
+  try{
+    passwordInput.type="password";
+    const currentPassword=await ask(
+      "Current Password",
+      "Enter your current password",
+      true
+    );
+    if(currentPassword===null)return;
+    if(!currentPassword){
+      await ask("Invalid Password","Please enter your current password.");
+      return;
+    }
+
+    const newPassword=await ask(
+      "New Password",
+      "Enter your new password (at least 6 characters)",
+      true
+    );
+    if(newPassword===null)return;
+    if(newPassword.length<6){
+      await ask("Invalid Password","New password must be at least 6 characters.");
+      return;
+    }
+
+    const confirmPassword=await ask(
+      "Confirm Password",
+      "Re-enter your new password",
+      true
+    );
+    if(confirmPassword===null)return;
+    if(newPassword!==confirmPassword){
+      await ask("Password Mismatch","The new passwords do not match.");
+      return;
+    }
+    if(currentPassword===newPassword){
+      await ask("Choose a New Password","Your new password must be different from the current password.");
+      return;
+    }
+
+    const credential=EmailAuthProvider.credential(
+      currentUser.email,
+      currentPassword
+    );
+
+    await reauthenticateWithCredential(currentUser,credential);
+    await updatePassword(currentUser,newPassword);
+
+    await ask(
+      "Password Updated",
+      "Your Mitra account password has been changed successfully."
+    );
+
+  }catch(error){
+    let message=error.message||"Could not change password.";
+    if(error.code==="auth/wrong-password" ||
+       error.code==="auth/invalid-credential"){
+      message="Current password is incorrect. Please try again.";
+    }else if(error.code==="auth/weak-password"){
+      message="Please choose a stronger password (at least 6 characters).";
+    }else if(error.code==="auth/too-many-requests"){
+      message="Too many attempts. Please try again later.";
+    }
+    await ask("Password Change Error",message);
+  }finally{
+    passwordInput.type=previousType||"text";
+    passwordInput.value="";
+  }
 };
 
 // Edit profile
