@@ -76,11 +76,6 @@ input:focus{border-color:var(--accent)}
  font-size:13px;text-align:center;margin:12px 0;
  line-height:1.5;color:var(--accent);
 }
-.phone{display:flex;gap:9px}
-.country{
- padding:15px 10px;background:var(--bg);
- border-radius:12px;font-weight:bold;white-space:nowrap;
-}
 </style>
 </head>
 
@@ -140,15 +135,6 @@ input:focus{border-color:var(--accent)}
     <label>Full Name</label>
     <input id="regName" type="text" placeholder="Enter your name"
      autocomplete="name">
-   </div>
-
-   <div class="field">
-    <label>Mobile Number</label>
-    <div class="phone">
-     <div class="country">🇮🇳 +91</div>
-     <input id="regMobile" type="tel" maxlength="10"
-      placeholder="10-digit mobile number">
-    </div>
    </div>
 
    <div class="field">
@@ -273,7 +259,6 @@ import {
 window.registerMitra = async function(){
 
  const name=document.getElementById('regName').value.trim();
- const mobile=document.getElementById('regMobile').value.trim();
  const email=document.getElementById('regEmail').value.trim();
  const password=document.getElementById('regPassword').value;
  const confirm=document.getElementById('confirmPassword').value;
@@ -282,10 +267,6 @@ window.registerMitra = async function(){
 
  if(name.length<2){
   message('registerStatus','Please enter your full name.');
-  return;
- }
- if(!/^[6-9][0-9]{9}$/.test(mobile)){
-  message('registerStatus','Enter a valid 10-digit mobile number.');
   return;
  }
  if(!validEmail(email)){
@@ -314,14 +295,13 @@ window.registerMitra = async function(){
    uid:user.uid,
    name:name,
    email:email,
-   mobile:mobile,
    createdAt:serverTimestamp()
   });
    
 await setDoc(doc(db,'publicUsers',user.uid),{
   uid:user.uid,
   name:name,
-  mobile:mobile
+  username:""
 });
    
   alert('Mitra account created successfully!');
@@ -368,7 +348,7 @@ try{
   await setDoc(doc(db,'publicUsers',user.uid),{
     uid:user.uid,
     name:profile.name,
-    mobile:profile.mobile
+    username:profile.username||""
   });
 
   window.location.href='index.html';
