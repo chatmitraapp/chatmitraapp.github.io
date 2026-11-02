@@ -253,6 +253,7 @@ let dialogResolve=null;
 let presenceCache = {};
 let reactionListeners = new Map();
 let currentReply = null;
+let messageSearchVersion = 0;
 
 // Firebase Cloud Messaging Web Push public VAPID key.
 const MITRA_VAPID_KEY = "BDFfkCvDB_glFWau6yJtRyHwU8l_4Pmoed6pgLuIOR44-VJusbCYhkg9NOZLIyZzlNmvZdwsGSTd5Y8u3Y-bznQ";
@@ -748,12 +749,125 @@ function updateChatPresence(uid) {
 function filterChats() {
   const searchInput = $("search");
   if (!searchInput) return;
+
   const searchText = searchInput.value.trim().toLowerCase();
-  const chatRows = document.querySelectorAll("#chats .chat");
+  const chatRows = document.querySelectorAll("#chats .chat:not(.messageSearchResult)");
   chatRows.forEach(row => {
     const rowText = row.textContent.toLowerCase();
-    row.style.display = rowText.includes(searchText) ? "flex" : "none";
+    row.style.display = !searchText || rowText.includes(searchText) ? "flex" : "none";
   });
+
+  const oldResults=document.getElementById("messageSearchResults");
+  if(oldResults)oldResults.remove();
+
+  const requestVersion=++messageSearchVersion;
+  if(searchText.length<2 || !currentUser)return;
+
+  searchMessages(searchText,requestVersion);
+}
+
+async function searchMessages(searchText,requestVersion){
+  const hidden=new Set(settings.hiddenChatIds);
+  const deleted=new Set(settings.deletedChatIds);
+  const searchableChats=allChats.filter(chat=>
+    !deleted.has(chat.id) &&
+    (showingHidden?hidden.has(chat.id):!hidden.has(chat.id))
+  );
+
+  const matches=[];
+
+  try{
+    await Promise.all(searchableChats.map(async chat=>{
+      const otherId=chat.members?.find(id=>id!==currentUser.uid);
+      const index=chat.members?.indexOf(otherId);
+      const name=publicNameCache.get(otherId)||chat.memberNames?.[index]||"Mitra User";
+      const resetAt=Number(settings.chatResetAt?.[chat.id]||0);
+
+      const snapshot=await getDocs(
+        collection(db,"chats",chat.id,"messages")
+      );
+
+      snapshot.forEach(messageDoc=>{
+        if(matches.length>=50)return;
+
+        const message={id:messageDoc.id,...messageDoc.data()};
+        const messageTime=message.createdAt?.toMillis?.()||0;
+
+        if(message.deletedForEveryone || (resetAt && messageTime<=resetAt))return;
+        if(typeof message.text!=="string")return;
+        if(!message.text.toLowerCase().includes(searchText))return;
+
+        matches.push({
+          chat,
+          otherId,
+          name,
+          message
+        });
+      });
+    }));
+
+    if(requestVersion!==messageSearchVersion)return;
+
+    const results=document.createElement("section");
+    results.id="messageSearchResults";
+    results.style.cssText="padding:8px 0 90px";
+    const heading=document.createElement("div");
+    heading.className="section";
+    heading.textContent="Messages";
+    results.appendChild(heading);
+
+    if(!matches.length){
+      const empty=document.createElement("div");
+      empty.className="notice";
+      empty.textContent="No matching messages found.";
+      results.appendChild(empty);
+    }else{
+      matches.sort((a,b)=>
+        (b.message.createdAt?.toMillis?.()||0)-
+        (a.message.createdAt?.toMillis?.()||0)
+      );
+
+      matches.forEach(item=>{
+        const row=document.createElement("div");
+        row.className="chat messageSearchResult";
+
+        const avatar=document.createElement("div");
+        avatar.className="avatar";
+        avatar.textContent=item.name.charAt(0).toUpperCase();
+
+        const details=document.createElement("div");
+        details.className="details";
+
+        const name=document.createElement("div");
+        name.className="name";
+        name.textContent=item.name;
+
+        const message=document.createElement("div");
+        message.className="message";
+        message.textContent=item.message.text;
+
+        const date=document.createElement("div");
+        date.className="presence";
+        date.textContent="Message";
+
+        details.append(name,message,date);
+        row.append(avatar,details);
+
+        row.onclick=()=>{
+          $("search").value="";
+          openChat(item.chat,item.otherId,item.name);
+        };
+
+        results.appendChild(row);
+      });
+    }
+
+    const chatList=$("chats");
+    if(chatList)chatList.appendChild(results);
+
+  }catch(error){
+    console.warn("Message search failed:",error);
+  }
 }
 // Make this available to the inline oninput handler in the chat list.
 window.filterChats = filterChats;
