@@ -378,6 +378,21 @@ updateChatPresence(uid);
   presenceListeners.set(uid, unsubscribe);
 }
 
+
+function formatLastSeen(timestamp) {
+  if (!timestamp) return "Last seen unavailable";
+
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return "Last seen unavailable";
+
+  return "Last seen " + date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 function updateChatPresence(uid) {
   const el = $("chatPresence");
 
@@ -390,6 +405,11 @@ function updateChatPresence(uid) {
   if (otherId !== uid) return;
 
   const presence = presenceCache[uid] || {};
+
+  el.textContent = presence.state === "online"
+    ? "🟢 Online"
+    : formatLastSeen(presence.lastChanged);
+}
 
   el.textContent = presence.state === "online"
     ? "🟢 Online"
