@@ -156,7 +156,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 import {auth,db} from './firebase.js';
 import {onAuthStateChanged,signOut,updatePassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
-import { startPresence } from "./presence.js";
+import { startPresence, stopPresence } from "./presence.js";
     
 let currentUser=null;
 let currentProfile=null;
@@ -1017,14 +1017,20 @@ window.changeProfile=async()=>{
 window.logout=async()=>{
   if(!await confirmBox("Logout from Mitra?"))return;
 
-  try{
-    if(chatsUnsubscribe)chatsUnsubscribe();
-    if(messagesUnsubscribe)messagesUnsubscribe();
-    await signOut(auth);
-    location.href="login.html";
-  }catch(error){
-    await ask("Logout Error",error.message);
+try {
+  if (chatsUnsubscribe) chatsUnsubscribe();
+  if (messagesUnsubscribe) messagesUnsubscribe();
+
+  if (currentUser) {
+    await stopPresence(currentUser.uid);
   }
+
+  await signOut(auth);
+  location.href = "login.html";
+
+} catch (error) {
+  await ask("Logout Error", error.message);
+}
 };
 
 </script>
