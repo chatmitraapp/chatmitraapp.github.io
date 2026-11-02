@@ -66,7 +66,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .messageTicks.seen{color:#55b7ff}
 
 .bubble.deleted{font-style:italic;opacity:.7}
-.reactionLine{font-size:17px;margin-top:5px}
+.reactionLine{font-size:17px;margin-top:5px;cursor:pointer;display:inline-flex;gap:5px;flex-wrap:wrap}.reactionPill{border:1px solid var(--line);border-radius:16px;padding:3px 8px;background:var(--card);font-size:14px;cursor:pointer}
 .composer{position:fixed;bottom:0;left:0;right:0;padding:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--card);z-index:3}
 .replyPreview{flex:0 0 100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-left:4px solid var(--accent);border-radius:9px;background:var(--bg);min-width:0}
 .replyPreviewText{display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden;font-size:12px}
@@ -109,6 +109,19 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .bubbleActions button {
     display: none !important;
 }
+
+#reactionDetailsOverlay{display:none;position:fixed;inset:0;background:#0008;z-index:30;align-items:center;justify-content:center;padding:16px}
+#reactionDetailsPanel{width:100%;max-width:390px;max-height:75vh;overflow:auto;background:var(--card);color:var(--text);border-radius:18px;box-shadow:0 8px 30px #0003}
+.reactionDetailsHead{display:flex;justify-content:space-between;align-items:center;padding:16px;font-weight:bold;border-bottom:1px solid var(--line)}
+.reactionDetailsClose{border:0;background:var(--bg);color:var(--text);border-radius:9px;padding:6px 11px;font-size:20px}
+.reactionTabs{display:flex;gap:7px;padding:12px;overflow-x:auto;border-bottom:1px solid var(--line)}
+.reactionTab{border:1px solid var(--line);border-radius:20px;padding:6px 12px;background:var(--bg);color:var(--text);white-space:nowrap}
+.reactionTab.active{background:#d9f7d9;border-color:#9ac99a}
+.reactionPeople{padding:4px 14px 14px}
+.reactionPerson{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.reactionAvatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--bg);font-weight:bold;flex-shrink:0}
+.reactionPersonText{flex:1;min-width:0}.reactionPersonText small{display:block;color:var(--muted);margin-top:4px}
+.reactionPersonEmoji{font-size:22px}
 </style>
 </head>
 <body>
@@ -189,6 +202,14 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <button class="primary" onclick="closeDialog(true)">OK</button>
 </div>
 </div>
+</div>
+
+<div id="reactionDetailsOverlay" onclick="if(event.target===this)closeReactionDetails()">
+  <div id="reactionDetailsPanel">
+    <div class="reactionDetailsHead"><span id="reactionDetailsTitle">Reactions</span><button class="reactionDetailsClose" onclick="closeReactionDetails()" aria-label="Close">×</button></div>
+    <div id="reactionTabs" class="reactionTabs"></div>
+    <div id="reactionPeople" class="reactionPeople"></div>
+  </div>
 </div>
 
 <script type="module">
@@ -707,8 +728,8 @@ updateChatPresence(otherId);
           });
 
           const reactionHTML = Object.entries(reactionCounts)
-            .map(([emoji, count]) => emoji + " " + count)
-            .join(" ");
+            .map(([emoji, count]) => `<button type="button" class="reactionPill" title="View reactions">${escapeHTML(emoji)} ${count}</button>`)
+            .join("");
 
           return {
             message: m,
@@ -797,6 +818,12 @@ updateChatPresence(otherId);
             <div class="reactionLine">${item.reactionHTML || ""}</div>
           `;
 
+          const reactionLineElement = bubble.querySelector(".reactionLine");
+          reactionLineElement.addEventListener("click", event => {
+            event.stopPropagation();
+            showReactionDetails(m);
+          });
+
           if (!deleted) {
             attachLongPress(bubble, () => messageMenu(m));
             let swipeStartX = 0, swipeStartY = 0;
@@ -854,7 +881,9 @@ updateChatPresence(otherId);
               if (emoji) counts[emoji] = (counts[emoji] || 0) + 1;
             });
             const line = box.querySelector('[data-message-id="' + m.id + '"] .reactionLine');
-            if (line) line.textContent = Object.entries(counts).map(([emoji,count]) => emoji + " " + count).join(" ");
+            if (line) line.innerHTML = Object.entries(counts).map(([emoji,count]) =>
+              `<button type="button" class="reactionPill" title="View reactions">${escapeHTML(emoji)} ${count}</button>`
+            ).join("");
           }, error => console.warn("Mitra reaction listener:", error));
           reactionListeners.set(m.id, unsub);
         });
@@ -1098,6 +1127,93 @@ async function pickMessageReaction(message){
     showError(error);
     await ask("Reaction Error",error.message);
   }
+}
+
+// Reaction details: show who reacted and allow the current user to remove their reaction.
+let reactionDetailsMessage = null;
+let reactionDetailsFilter = "all";
+window.closeReactionDetails = () => {
+  $("reactionDetailsOverlay").style.display = "none";
+  reactionDetailsMessage = null;
+};
+async function showReactionDetails(message) {
+  if (!activeChat || !message) return;
+  reactionDetailsMessage = message;
+  reactionDetailsFilter = "all";
+  await renderReactionDetails();
+  $("reactionDetailsOverlay").style.display = "flex";
+}
+async function renderReactionDetails() {
+  const message = reactionDetailsMessage;
+  if (!message || !activeChat) return;
+  const reactionRef = collection(db, "chats", activeChat.id, "messages", message.id, "reactions");
+  const snap = await getDocs(reactionRef);
+  const entries = snap.docs.map(d => ({ uid: d.id, ...(d.data() || {}) })).filter(x => x.emoji);
+  const counts = {};
+  entries.forEach(x => counts[x.emoji] = (counts[x.emoji] || 0) + 1);
+  $("reactionDetailsTitle").textContent = `${entries.length} reaction${entries.length === 1 ? "" : "s"}`;
+  const tabs = $("reactionTabs");
+  tabs.innerHTML = "";
+  const addTab = (key, label, count) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "reactionTab" + (reactionDetailsFilter === key ? " active" : "");
+    b.textContent = label + (count ? " " + count : "");
+    b.onclick = () => { reactionDetailsFilter = key; renderReactionDetails(); };
+    tabs.appendChild(b);
+  };
+  addTab("all", "All", entries.length);
+  Object.entries(counts).forEach(([emoji,count]) => addTab(emoji, emoji, count));
+  const people = $("reactionPeople");
+  people.innerHTML = "";
+  const visible = reactionDetailsFilter === "all" ? entries : entries.filter(x => x.emoji === reactionDetailsFilter);
+  for (const item of visible) {
+    let displayName = item.uid === currentUser?.uid ? "You" : "Mitra User";
+    let avatarText = item.uid === currentUser?.uid ? (currentProfile?.name || "Y").charAt(0).toUpperCase() : "M";
+    if (item.uid !== currentUser?.uid) {
+      try {
+        const userSnap = await getDoc(doc(db, "users", item.uid));
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          displayName = userData.name || displayName;
+          avatarText = (userData.name || "M").charAt(0).toUpperCase();
+        }
+      } catch (_) {}
+    }
+    const row = document.createElement("div");
+    row.className = "reactionPerson";
+    const avatar = document.createElement("div"); avatar.className = "reactionAvatar"; avatar.textContent = avatarText;
+    const textBox = document.createElement("div"); textBox.className = "reactionPersonText";
+    const name = document.createElement("div"); name.textContent = displayName;
+    const hint = document.createElement("small"); hint.textContent = item.uid === currentUser?.uid ? "Click to remove" : " ";
+    textBox.append(name,hint);
+    const emoji = document.createElement("div"); emoji.className = "reactionPersonEmoji"; emoji.textContent = item.emoji;
+    row.append(avatar,textBox,emoji);
+    if (item.uid === currentUser?.uid) {
+      row.title = "Click to remove your reaction";
+      row.onclick = async () => {
+        try {
+          await deleteDoc(doc(db, "chats", activeChat.id, "messages", message.id, "reactions", currentUser.uid));
+          await renderReactionDetails();
+        } catch (error) { showError(error); await ask("Remove Reaction Error", error.message); }
+      };
+    }
+    people.appendChild(row);
+  }
+  const add = document.createElement("button");
+  add.type = "button"; add.className = "reactionTab"; add.textContent = "+ Add reaction";
+  add.onclick = async () => {
+    const emoji = await chooseMitraEmoji();
+    if (!emoji) return;
+    try {
+      const ownRef = doc(db, "chats", activeChat.id, "messages", message.id, "reactions", currentUser.uid);
+      const old = await getDoc(ownRef);
+      if (old.exists() && old.data().emoji === emoji) await deleteDoc(ownRef);
+      else await setDoc(ownRef, { userId: currentUser.uid, emoji, updatedAt: serverTimestamp() });
+      reactionDetailsFilter = "all";
+      await renderReactionDetails();
+    } catch (error) { showError(error); await ask("Reaction Error", error.message); }
+  };
+  tabs.appendChild(add);
 }
 
 // Message actions: open only with long press
