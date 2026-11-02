@@ -892,6 +892,7 @@ async function messageMenu(message){
   if(!activeChat||message.deletedForEveryone)return;
   const mine=message.senderId===currentUser.uid;
   const actions=[
+    ...(mine?[{label:"ℹ️  Info",value:"info"}]:[]),
     ...(mine&&message.type==="text"?[{label:"✏️  Edit message",value:"edit"}]:[]),
     {label:"📋  Copy",value:"copy"},
     {label:"↪️  Forward",value:"forward"},
@@ -904,6 +905,37 @@ async function messageMenu(message){
 
   try{
     const ref=doc(db,"chats",activeChat.id,"messages",message.id);
+
+    if(choice==="info"){
+      const formatInfoTime = timestamp => {
+        const date = getMessageDate(timestamp);
+        return date
+          ? date.toLocaleString("en-IN", {
+              day:"numeric",
+              month:"short",
+              year:"numeric",
+              hour:"2-digit",
+              minute:"2-digit"
+            })
+          : "Not available";
+      };
+
+      const sentTime = formatInfoTime(message.createdAt);
+      const deliveredTime = message.deliveredAt
+        ? formatInfoTime(message.deliveredAt)
+        : "Not delivered yet";
+      const seenTime = message.seenAt
+        ? formatInfoTime(message.seenAt)
+        : "Not seen yet";
+
+      await ask(
+        "Message Info",
+        "Sent: " + sentTime +
+        "\\nDelivered: " + deliveredTime +
+        "\\nSeen: " + seenTime
+      );
+      return;
+    }
 
     if(choice==="copy"){
       const copyText=message.text||"";
