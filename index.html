@@ -162,8 +162,9 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <div class="settingRow">
 <b id="profileName">Profile</b>
 <p id="profileEmail" class="message"></p>
-<p id="profileMobile" class="message"></p>
+<p id="profileUsername" class="message"></p>
 </div>
+<div class="settingRow" id="usernameSetting" onclick="setUsername()">👤 Create Username</div>
 <div class="settingRow" onclick="changeProfile()">✏️ Edit Profile</div>
 <div class="settingRow" onclick="changeAccountPassword()">🔑 Change Password</div>
 <div class="settingRow" onclick="toggleTheme()">◐ Change Theme</div>
@@ -543,7 +544,8 @@ $("errorInfo").textContent="";
     setTimeout(showMitraFirstLaunchNotificationPrompt, 1200);
     $("profileName").textContent=currentProfile.name||"Mitra User";
     $("profileEmail").textContent=currentProfile.email||user.email;
-    $("profileMobile").textContent=currentProfile.mobile||"";
+    $("profileUsername").textContent=currentProfile.username?"@"+currentProfile.username:"Username: Not set";
+    updateUsernameSettingLabel();
     status("Loading settings...");
     const settingsRef=doc(db,"userSettings",user.uid);
     const settingsSnap=await getDoc(settingsRef);
@@ -993,31 +995,94 @@ function renderChats(){
   filterChats();
 }
 
-async function findUserByMobile(number){
-  const q=query(collection(db,"publicUsers"),where("mobile","==",number));
+function updateUsernameSettingLabel(){
+  const row=$("usernameSetting");
+  if(row)row.textContent=currentProfile?.username
+    ? "👤 Username: @"+currentProfile.username+" (Change)"
+    : "👤 Create Username";
+}
+
+window.setUsername=async()=>{
+  const value=await ask(
+    "Create Username",
+    "Choose a unique username (3–20 characters: a-z, 0-9, underscore, dot)",
+    true,
+    currentProfile?.username||""
+  );
+  if(value===null)return;
+
+  const username=value.trim().toLowerCase();
+  if(!/^[a-z0-9_.]{3,20}$/.test(username)){
+    await ask("Invalid Username","Use 3–20 characters: lowercase letters, numbers, underscore or dot.");
+    return;
+  }
+
+  try{
+    const usernameQuery=query(
+      collection(db,"publicUsers"),
+      where("username","==",username)
+    );
+    const existing=await getDocs(usernameQuery);
+    if(existing.docs.some(d=>d.id!==currentUser.uid)){
+      await ask("Username Taken","This username is already in use. Choose another one.");
+      return;
+    }
+
+    await updateDoc(doc(db,"users",currentUser.uid),{
+      username:username
+    });
+    await updateDoc(doc(db,"publicUsers",currentUser.uid),{
+      username:username
+    });
+
+    currentProfile.username=username;
+    $("profileUsername").textContent="@"+username;
+    updateUsernameSettingLabel();
+    await ask("Success","Your username is now @"+username+". Others can find you using this username.");
+  }catch(error){
+    await ask("Username Error",error.message+" If this is a permissions error, Firestore Rules must allow the username field.");
+  }
+};
+
+async function findUserByUsername(value){
+  const username=value.trim().replace(/^@/,"").toLowerCase();
+  const q=query(collection(db,"publicUsers"),where("username","==",username));
   const result=await getDocs(q);
   return result.docs.find(d=>d.id!==currentUser.uid);
 }
+
 window.newChat=async()=>{
-  const number=await ask("New Chat","Enter 10-digit mobile number",true);
-  if(number!==null)await createChatWithNumber(number.trim());
+  const username=await ask("New Chat","Enter Mitra username (e.g. @neelu)",true);
+  if(username!==null)await createChatWithUsername(username.trim());
 };
-async function createChatWithNumber(number){
-  if(!/^[0-9]{10}$/.test(number)){await ask("Invalid number","Enter a valid 10-digit mobile number.");return;}
+
+async function createChatWithUsername(value){
+  const username=value.trim().replace(/^@/,"").toLowerCase();
+  if(!/^[a-z0-9_.]{3,20}$/.test(username)){
+    await ask("Invalid Username","Enter a valid username (3–20 characters).");
+    return;
+  }
   try{
-    status("Searching user...");
-    const found=await findUserByMobile(number);
-    if(!found){status("Connected to Mitra");await ask("User not found","Ask the person to register on Mitra first.");return;}
+    status("Searching username...");
+    const found=await findUserByUsername(username);
+    if(!found){
+      status("Connected to Mitra");
+      await ask("User not found","Check the username or ask the person to create one in Settings.");
+      return;
+    }
+
     const other=found.data();
     const members=[currentUser.uid,other.uid].sort();
     const chatId=members.join("_");
     let chat=allChats.find(c=>c.id===chatId);
+
     if(!chat){
       const memberNames=members.map(uid=>uid===currentUser.uid?currentProfile.name:other.name);
       const data={members,memberNames,createdAt:serverTimestamp(),lastMessage:"",lastMessageAt:serverTimestamp()};
       await setDoc(doc(db,"chats",chatId),data);
       chat={id:chatId,...data};
     }
+
     settings.deletedChatIds=settings.deletedChatIds.filter(id=>id!==chatId);
     settings.hiddenChatIds=settings.hiddenChatIds.filter(id=>id!==chatId);
     await saveSettings();
@@ -1747,9 +1812,9 @@ async function messageMenu(message){
     }
 
     if(choice==="forward"){
-      const number=await ask("Forward message","Enter recipient's 10-digit mobile number",true);
-      if(!number)return;
-      const found=await findUserByMobile(number.trim());
+      const username=await ask("Forward message","Enter recipient's Mitra username",true);
+      if(!username)return;
+      const found=await findUserByUsername(username.trim());
       if(!found)return ask("User not found","This user is not registered on Mitra.");
 
       const recipient=found.data();
@@ -2014,10 +2079,7 @@ window.searchEnter=async event=>{
       await ask("Error",error.message);
     }
 
-  }else if(/^[0-9]{10}$/.test(value)){
-    $("search").value="";
-    await createChatWithNumber(value);
-  }
+
 };
   // Settings screen
 window.showSettings=()=>{
