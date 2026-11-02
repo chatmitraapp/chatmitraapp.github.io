@@ -419,7 +419,7 @@ function attachLongPress(element,callback){
   },true);
 }
 
-let settings={secretSalt:"",secretHash:"",hiddenChatIds:[],deletedChatIds:[],mutedChatIds:[]};
+let settings={secretSalt:"",secretHash:"",hiddenChatIds:[],deletedChatIds:[],mutedChatIds:[],chatResetAt:{}};
 const $=id=>document.getElementById(id);
 function status(t){$("status").textContent=t;}
 function showError(e){
@@ -551,7 +551,8 @@ $("errorInfo").textContent="";
         secretSalt:d.secretSalt||"",secretHash:d.secretHash||"",
         hiddenChatIds:Array.isArray(d.hiddenChatIds)?d.hiddenChatIds:[],
         deletedChatIds:Array.isArray(d.deletedChatIds)?d.deletedChatIds:[],
-        mutedChatIds:Array.isArray(d.mutedChatIds)?d.mutedChatIds:[]
+        mutedChatIds:Array.isArray(d.mutedChatIds)?d.mutedChatIds:[],
+        chatResetAt:d.chatResetAt&&typeof d.chatResetAt==="object"?d.chatResetAt:{}
       };
     }else{await saveSettings();}
     listenChats();
@@ -736,11 +737,15 @@ function renderChats(){
     const row=document.createElement("div");
     row.className="chat";
 
+    const resetAt=Number(settings.chatResetAt?.[c.id]||0);
+    const lastMessageTime=c.lastMessageAt?.toMillis?.()||0;
+    const preview=lastMessageTime>resetAt?(c.lastMessage||"Start chatting"):"Start chatting";
+
     row.innerHTML=`
       <div class="avatar">${escapeHTML(name.charAt(0).toUpperCase())}</div>
       <div class="details">
         <div class="name">${escapeHTML(name)}</div>
-        <div class="message">${escapeHTML(c.lastMessage||"Start chatting")}</div>
+        <div class="message">${escapeHTML(preview)}</div>
         <div class="presence">${escapeHTML(statusText)}</div>
       </div>
       <div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>
@@ -841,6 +846,7 @@ updateChatPresence(otherId);
           box.scrollHeight - box.scrollTop - box.clientHeight < 100;
 
         // Get every message from the snapshot.
+        const resetAt=Number(settings.chatResetAt?.[currentChatId]||0);
         const messageTasks = snapshot.docs.map(async messageDoc => {
         const m = {
   id: messageDoc.id,
@@ -848,6 +854,9 @@ updateChatPresence(otherId);
     serverTimestamps: "estimate"
   })
 };
+
+          const messageTime=m.createdAt?.toMillis?.()||0;
+          if(resetAt && messageTime<=resetAt) return null;
 
           const hiddenRef = doc(
             db,
@@ -1606,6 +1615,8 @@ async function deleteChatForMe(chat){
 
   try{
     settings.deletedChatIds=[...new Set([...settings.deletedChatIds,chat.id])];
+    settings.chatResetAt=settings.chatResetAt||{};
+    settings.chatResetAt[chat.id]=Date.now();
     settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
     await saveSettings();
     renderChats();
@@ -1678,7 +1689,8 @@ async function saveSettings(){
     secretHash:settings.secretHash,
     hiddenChatIds:settings.hiddenChatIds,
     deletedChatIds:settings.deletedChatIds,
-    mutedChatIds:settings.mutedChatIds
+    mutedChatIds:settings.mutedChatIds,
+    chatResetAt:settings.chatResetAt||{}
   });
 }
 
