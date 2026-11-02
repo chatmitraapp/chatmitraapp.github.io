@@ -383,7 +383,10 @@ function formatLastSeen(timestamp) {
   if (!timestamp) return "Last seen unavailable";
 
   const date = new Date(timestamp);
-  if (isNaN(date.getTime())) return "Last seen unavailable";
+
+  if (isNaN(date.getTime())) {
+    return "Last seen unavailable";
+  }
 
   return "Last seen " + date.toLocaleString("en-IN", {
     day: "numeric",
