@@ -646,17 +646,18 @@ updateChatPresence(otherId);
         });
 
         if (unseenIncoming.length) {
-          await Promise.all(unseenIncoming.map(messageDoc =>
-            updateDoc(
-              doc(db, "chats", currentChatId, "messages", messageDoc.id),
-              {
-                seenAt: serverTimestamp(),
-                seenByUid: currentUser.uid
-              }
-            )
-          ));
-        }
-
+  unseenIncoming.forEach(messageDoc => {
+    updateDoc(
+      doc(db, "chats", currentChatId, "messages", messageDoc.id),
+      {
+        seenAt: serverTimestamp(),
+        seenByUid: currentUser.uid
+      }
+    ).catch(error => {
+      console.error("Seen Receipt Error:", error);
+    });
+  });
+}
         // Load all messages together.
         const results = await Promise.all(messageTasks);
 
