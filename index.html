@@ -66,7 +66,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .messageTicks.seen{color:#55b7ff}
 
 .bubble.deleted{font-style:italic;opacity:.7}
-.reactionLine{font-size:17px;margin-top:5px;cursor:pointer;display:inline-flex;gap:5px;flex-wrap:wrap}.reactionPill{border:1px solid var(--line);border-radius:16px;padding:3px 8px;background:var(--card);font-size:14px;cursor:pointer}
+.reactionLine{font-size:14px;margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;min-height:0}.reactionChip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);font-size:13px;cursor:pointer}.reactionDetailRow{display:flex;align-items:center;gap:10px;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer}.reactionDetailRow .reactionPerson{flex:1;min-width:0}.reactionDetailRow .reactionHint{font-size:12px;color:var(--muted);margin-top:3px}.reactionDetailEmoji{font-size:22px}.reactionClose{float:right;border:0;background:transparent;color:var(--text);font-size:24px;cursor:pointer}
 .composer{position:fixed;bottom:0;left:0;right:0;padding:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--card);z-index:3}
 .replyPreview{flex:0 0 100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-left:4px solid var(--accent);border-radius:9px;background:var(--bg);min-width:0}
 .replyPreviewText{display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden;font-size:12px}
@@ -109,19 +109,6 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .bubbleActions button {
     display: none !important;
 }
-
-#reactionDetailsOverlay{display:none;position:fixed;inset:0;background:#0008;z-index:30;align-items:center;justify-content:center;padding:16px}
-#reactionDetailsPanel{width:100%;max-width:390px;max-height:75vh;overflow:auto;background:var(--card);color:var(--text);border-radius:18px;box-shadow:0 8px 30px #0003}
-.reactionDetailsHead{display:flex;justify-content:space-between;align-items:center;padding:16px;font-weight:bold;border-bottom:1px solid var(--line)}
-.reactionDetailsClose{border:0;background:var(--bg);color:var(--text);border-radius:9px;padding:6px 11px;font-size:20px}
-.reactionTabs{display:flex;gap:7px;padding:12px;overflow-x:auto;border-bottom:1px solid var(--line)}
-.reactionTab{border:1px solid var(--line);border-radius:20px;padding:6px 12px;background:var(--bg);color:var(--text);white-space:nowrap}
-.reactionTab.active{background:#d9f7d9;border-color:#9ac99a}
-.reactionPeople{padding:4px 14px 14px}
-.reactionPerson{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
-.reactionAvatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--bg);font-weight:bold;flex-shrink:0}
-.reactionPersonText{flex:1;min-width:0}.reactionPersonText small{display:block;color:var(--muted);margin-top:4px}
-.reactionPersonEmoji{font-size:22px}
 </style>
 </head>
 <body>
@@ -202,14 +189,6 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <button class="primary" onclick="closeDialog(true)">OK</button>
 </div>
 </div>
-</div>
-
-<div id="reactionDetailsOverlay" onclick="if(event.target===this)closeReactionDetails()">
-  <div id="reactionDetailsPanel">
-    <div class="reactionDetailsHead"><span id="reactionDetailsTitle">Reactions</span><button class="reactionDetailsClose" onclick="closeReactionDetails()" aria-label="Close">×</button></div>
-    <div id="reactionTabs" class="reactionTabs"></div>
-    <div id="reactionPeople" class="reactionPeople"></div>
-  </div>
 </div>
 
 <script type="module">
@@ -728,8 +707,8 @@ updateChatPresence(otherId);
           });
 
           const reactionHTML = Object.entries(reactionCounts)
-            .map(([emoji, count]) => `<button type="button" class="reactionPill" title="View reactions">${escapeHTML(emoji)} ${count}</button>`)
-            .join("");
+            .map(([emoji, count]) => emoji + " " + count)
+            .join(" ");
 
           return {
             message: m,
@@ -817,11 +796,11 @@ updateChatPresence(otherId);
             </small>
             <div class="reactionLine">${item.reactionHTML || ""}</div>
           `;
-
-          const reactionLineElement = bubble.querySelector(".reactionLine");
-          reactionLineElement.addEventListener("click", event => {
+          bubble.querySelector(".reactionLine").addEventListener("click", event => {
+            const chip = event.target.closest(".reactionChip");
+            if (!chip) return;
             event.stopPropagation();
-            showReactionDetails(m);
+            showReactionDetails(m, chip.dataset.emoji || "");
           });
 
           if (!deleted) {
@@ -881,9 +860,7 @@ updateChatPresence(otherId);
               if (emoji) counts[emoji] = (counts[emoji] || 0) + 1;
             });
             const line = box.querySelector('[data-message-id="' + m.id + '"] .reactionLine');
-            if (line) line.innerHTML = Object.entries(counts).map(([emoji,count]) =>
-              `<button type="button" class="reactionPill" title="View reactions">${escapeHTML(emoji)} ${count}</button>`
-            ).join("");
+            if (line) line.innerHTML = Object.entries(counts).map(([emoji,count]) => `<button type="button" class="reactionChip" data-emoji="${escapeHTML(emoji)}">${emoji} ${count}</button>`).join("");
           }, error => console.warn("Mitra reaction listener:", error));
           reactionListeners.set(m.id, unsub);
         });
@@ -1017,7 +994,7 @@ window.sendMessage=async()=>{
   }
 };
 
-async function chooseMitraEmoji(keepOpen=false,onSelect=null){
+async function chooseMitraEmoji(){
   const groups = [
     ["Smileys & emotions", "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 🙂‍↕️ 🙂‍↔️ 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😶‍🌫️ 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🫡 🤫 🫠 🤥 😶 😐 😑 😬 🫨 🥱 😴 🤤 😪 😮‍💨 😵 😵‍💫 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 💀 ☠️ 👻 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾"],
     ["Hands & people", "👋 🤚 🖐️ ✋ 🖖 🫱 🫲 🫳 🫴 🫷 🫸 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 🫵 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦 👶 🧒 👦 👧 🧑 👨 👩 🧔 🧔‍♀️ 🧔‍♂️ 👱 👱‍♀️ 👱‍♂️ 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 🥷 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🫃 🫄 🤱 👩‍🍼 👨‍🍼 🧑‍🍼 🎅 🤶 🧑‍🎄 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 💆 💇 🚶 🧍 🧎 🏃 💃 🕺 🕴️ 👯 🧖 🧗 🏇 🏂 🏄 🚣 🏊 ⛹️ 🏋️ 🚴 🚵 🤸 🤼 🤽 🤾 🤹 🧘 🛀 🛌"],
@@ -1046,17 +1023,6 @@ async function chooseMitraEmoji(keepOpen=false,onSelect=null){
     }
     picker.innerHTML="";
     picker.style.display="block";
-    const pickerTop=document.createElement("div");
-    pickerTop.style.cssText="display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);padding:4px 0 10px;z-index:2";
-    const pickerLabel=document.createElement("b");
-    pickerLabel.textContent="Choose an emoji";
-    const closeButton=document.createElement("button");
-    closeButton.type="button";
-    closeButton.textContent="✕";
-    closeButton.setAttribute("aria-label","Close emoji picker");
-    closeButton.style.cssText="border:0;border-radius:9px;background:var(--bg);color:var(--text);font-size:18px;padding:7px 11px;cursor:pointer";
-    pickerTop.append(pickerLabel,closeButton);
-    picker.appendChild(pickerTop);
     const finish=value=>{
       picker.style.display="none";
       picker.innerHTML="";
@@ -1064,7 +1030,6 @@ async function chooseMitraEmoji(keepOpen=false,onSelect=null){
       overlay.style.display="none";
       resolve(value);
     };
-    closeButton.onclick=()=>finish(null);
     groups.forEach(([label,items])=>{
       const heading=document.createElement("div");
       heading.textContent=label;
@@ -1078,38 +1043,30 @@ async function chooseMitraEmoji(keepOpen=false,onSelect=null){
         button.textContent=emoji;
         button.title=emoji;
         button.style.cssText="border:0;border-radius:8px;background:var(--bg);font-size:23px;min-height:39px;cursor:pointer";
-        button.onclick=()=>{
-          if(keepOpen){
-            if(typeof onSelect==="function")onSelect(emoji);
-            button.style.transform="scale(.88)";
-            setTimeout(()=>button.style.transform="",120);
-          }else{
-            finish(emoji);
-          }
-        };
+        button.onclick=()=>finish(emoji);
         grid.appendChild(button);
       });
       picker.appendChild(grid);
     });
     const cancel=document.createElement("button");
     cancel.type="button";
-    cancel.textContent="Close emoji window";
+    cancel.textContent="Cancel";
     cancel.style.cssText="width:100%;margin-top:12px;padding:11px;border:0;border-radius:10px;background:var(--bg);color:var(--text)";
     cancel.onclick=()=>finish(null);
     picker.appendChild(cancel);
     overlay.style.display="flex";
   });
 }
-window.openComposerEmojiPicker=function(){
+window.openComposerEmojiPicker=async function(){
+  const emoji=await chooseMitraEmoji();
+  if(!emoji)return;
   const input=$("messageInput");
-  chooseMitraEmoji(true,emoji=>{
-    const start=input.selectionStart ?? input.value.length;
-    const end=input.selectionEnd ?? input.value.length;
-    input.value=input.value.slice(0,start)+emoji+input.value.slice(end);
-    input.focus();
-    const cursor=start+emoji.length;
-    input.setSelectionRange(cursor,cursor);
-  });
+  const start=input.selectionStart ?? input.value.length;
+  const end=input.selectionEnd ?? input.value.length;
+  input.value=input.value.slice(0,start)+emoji+input.value.slice(end);
+  input.focus();
+  const cursor=start+emoji.length;
+  input.setSelectionRange(cursor,cursor);
 }
 async function pickMessageReaction(message){
   if(!activeChat || !currentUser)return;
@@ -1129,91 +1086,67 @@ async function pickMessageReaction(message){
   }
 }
 
-// Reaction details: show who reacted and allow the current user to remove their reaction.
-let reactionDetailsMessage = null;
-let reactionDetailsFilter = "all";
-window.closeReactionDetails = () => {
-  $("reactionDetailsOverlay").style.display = "none";
-  reactionDetailsMessage = null;
-};
-async function showReactionDetails(message) {
-  if (!activeChat || !message) return;
-  reactionDetailsMessage = message;
-  reactionDetailsFilter = "all";
-  await renderReactionDetails();
-  $("reactionDetailsOverlay").style.display = "flex";
-}
-async function renderReactionDetails() {
-  const message = reactionDetailsMessage;
-  if (!message || !activeChat) return;
-  const reactionRef = collection(db, "chats", activeChat.id, "messages", message.id, "reactions");
-  const snap = await getDocs(reactionRef);
-  const entries = snap.docs.map(d => ({ uid: d.id, ...(d.data() || {}) })).filter(x => x.emoji);
-  const counts = {};
-  entries.forEach(x => counts[x.emoji] = (counts[x.emoji] || 0) + 1);
-  $("reactionDetailsTitle").textContent = `${entries.length} reaction${entries.length === 1 ? "" : "s"}`;
-  const tabs = $("reactionTabs");
-  tabs.innerHTML = "";
-  const addTab = (key, label, count) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "reactionTab" + (reactionDetailsFilter === key ? " active" : "");
-    b.textContent = label + (count ? " " + count : "");
-    b.onclick = () => { reactionDetailsFilter = key; renderReactionDetails(); };
-    tabs.appendChild(b);
-  };
-  addTab("all", "All", entries.length);
-  Object.entries(counts).forEach(([emoji,count]) => addTab(emoji, emoji, count));
-  const people = $("reactionPeople");
-  people.innerHTML = "";
-  const visible = reactionDetailsFilter === "all" ? entries : entries.filter(x => x.emoji === reactionDetailsFilter);
-  for (const item of visible) {
-    let displayName = item.uid === currentUser?.uid ? "You" : "Mitra User";
-    let avatarText = item.uid === currentUser?.uid ? (currentProfile?.name || "Y").charAt(0).toUpperCase() : "M";
-    if (item.uid !== currentUser?.uid) {
-      try {
-        const userSnap = await getDoc(doc(db, "users", item.uid));
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          displayName = userData.name || displayName;
-          avatarText = (userData.name || "M").charAt(0).toUpperCase();
-        }
-      } catch (_) {}
-    }
-    const row = document.createElement("div");
-    row.className = "reactionPerson";
-    const avatar = document.createElement("div"); avatar.className = "reactionAvatar"; avatar.textContent = avatarText;
-    const textBox = document.createElement("div"); textBox.className = "reactionPersonText";
-    const name = document.createElement("div"); name.textContent = displayName;
-    const hint = document.createElement("small"); hint.textContent = item.uid === currentUser?.uid ? "Click to remove" : " ";
-    textBox.append(name,hint);
-    const emoji = document.createElement("div"); emoji.className = "reactionPersonEmoji"; emoji.textContent = item.emoji;
-    row.append(avatar,textBox,emoji);
-    if (item.uid === currentUser?.uid) {
-      row.title = "Click to remove your reaction";
-      row.onclick = async () => {
-        try {
-          await deleteDoc(doc(db, "chats", activeChat.id, "messages", message.id, "reactions", currentUser.uid));
-          await renderReactionDetails();
-        } catch (error) { showError(error); await ask("Remove Reaction Error", error.message); }
-      };
-    }
-    people.appendChild(row);
+// WhatsApp-style reaction details; users can remove only their own reaction.
+async function showReactionDetails(message, selectedEmoji=""){
+  if(!activeChat || !currentUser || !message?.id) return;
+  const overlay=$("overlay"), dialog=$("dialogTitle").parentNode, oldActions=$("dialogActions");
+  $("dialogTitle").textContent="Reactions";
+  $("dialogText").textContent="Your reactions";
+  $("dialogInput").style.display="none";
+  oldActions.style.display="none";
+  let panel=document.getElementById("reactionDetailsPanel");
+  if(!panel){
+    panel=document.createElement("div");
+    panel.id="reactionDetailsPanel";
+    panel.style.cssText="max-height:55vh;overflow:auto;margin-top:10px";
+    dialog.insertBefore(panel,oldActions);
   }
-  const add = document.createElement("button");
-  add.type = "button"; add.className = "reactionTab"; add.textContent = "+ Add reaction";
-  add.onclick = async () => {
-    const emoji = await chooseMitraEmoji();
-    if (!emoji) return;
-    try {
-      const ownRef = doc(db, "chats", activeChat.id, "messages", message.id, "reactions", currentUser.uid);
-      const old = await getDoc(ownRef);
-      if (old.exists() && old.data().emoji === emoji) await deleteDoc(ownRef);
-      else await setDoc(ownRef, { userId: currentUser.uid, emoji, updatedAt: serverTimestamp() });
-      reactionDetailsFilter = "all";
-      await renderReactionDetails();
-    } catch (error) { showError(error); await ask("Reaction Error", error.message); }
-  };
-  tabs.appendChild(add);
+  panel.innerHTML='<div style="display:flex;justify-content:flex-end"><button type="button" class="reactionClose">×</button></div><div>Loading reactions...</div>';
+  panel.style.display="block"; overlay.style.display="flex";
+  const close=()=>{panel.style.display="none";panel.innerHTML="";overlay.style.display="none";oldActions.style.display="flex";};
+  panel.querySelector(".reactionClose").onclick=close;
+  try{
+    const reactionRef=collection(db,"chats",activeChat.id,"messages",message.id,"reactions");
+    const snap=await getDocs(reactionRef);
+    const reactions=snap.docs.map(d=>({uid:d.id,...d.data()}));
+    const counts={}; reactions.forEach(r=>{if(r.emoji)counts[r.emoji]=(counts[r.emoji]||0)+1;});
+    const filters=Object.entries(counts).map(([emoji,count])=>`<button type="button" class="reactionChip" data-filter="${escapeHTML(emoji)}">${emoji} ${count}</button>`).join("");
+    panel.innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px">
+      <button type="button" class="reactionChip" data-filter="">All ${reactions.length}</button>${filters}
+      <button type="button" class="reactionChip" data-add="1">＋ Add</button>
+      <button type="button" class="reactionClose" aria-label="Close">×</button>
+    </div><div id="reactionPeople"></div>`;
+    panel.querySelector(".reactionClose").onclick=close;
+    let activeFilter=selectedEmoji;
+    const renderPeople=async()=>{
+      const people=panel.querySelector("#reactionPeople");
+      people.innerHTML="";
+      const filtered=reactions.filter(r=>!activeFilter||r.emoji===activeFilter);
+      if(!filtered.length){people.innerHTML='<div class="notice">No reactions yet.</div>';return;}
+      for(const r of filtered){
+        let name=r.uid===currentUser.uid?(currentProfile?.name||"You"):"Mitra User";
+        if(r.uid!==currentUser.uid){
+          try{const us=await getDoc(doc(db,"users",r.uid));if(us.exists())name=us.data().name||name;}catch(e){}
+        }
+        const row=document.createElement("div");
+        row.className="reactionDetailRow";
+        row.innerHTML=`<div class="reactionPerson"><div>${escapeHTML(name)}</div><div class="reactionHint">${r.uid===currentUser.uid?"Click to remove":""}</div></div><div class="reactionDetailEmoji">${escapeHTML(r.emoji||"")}</div>`;
+        if(r.uid===currentUser.uid){
+          row.onclick=async()=>{
+            try{await deleteDoc(doc(db,"chats",activeChat.id,"messages",message.id,"reactions",currentUser.uid));close();}
+            catch(error){showError(error);await ask("Reaction Error",error.message);}
+          };
+        }
+        people.appendChild(row);
+      }
+    };
+    panel.querySelectorAll("[data-filter]").forEach(btn=>btn.onclick=()=>{activeFilter=btn.dataset.filter||"";renderPeople();});
+    panel.querySelector("[data-add]").onclick=()=>{close();pickMessageReaction(message);};
+    await renderPeople();
+  }catch(error){
+    panel.innerHTML='<div class="notice">Could not load reactions: '+escapeHTML(error.message||error)+'</div><button type="button" class="primary">Close</button>';
+    panel.querySelector("button").onclick=close;
+  }
 }
 
 // Message actions: open only with long press
