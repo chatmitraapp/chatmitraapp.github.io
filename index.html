@@ -568,8 +568,12 @@ function listenChats(){
   );
 
   chatsUnsubscribe=onSnapshot(q,async snapshot=>{
-    allChats=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+    allChats=snapshot.docs.map(d=>({
+      id:d.id,
+      ...d.data()
+    }));
 
+    // Restore chats when a new message arrives after deletion.
     let restored=false;
 
     allChats.forEach(chat=>{
@@ -598,9 +602,34 @@ function listenChats(){
       }
     }
 
+    // Refresh the currently open chat header with the latest name.
+    if(activeChat){
+      const latestChat=allChats.find(
+        chat=>chat.id===activeChat.id
+      );
+
+      if(latestChat){
+        activeChat=latestChat;
+
+        const otherId=latestChat.members?.find(
+          id=>id!==currentUser.uid
+        );
+
+        const index=latestChat.members?.indexOf(otherId);
+        const latestName=
+          latestChat.memberNames?.[index]||"Mitra User";
+
+        $("chatName").textContent=latestName;
+        $("chatAvatar").textContent=
+          latestName.charAt(0).toUpperCase();
+      }
+    }
+
     renderChats();
+
     status("Connected to Mitra");
     $("errorInfo").textContent="";
+
   },error=>{
     status("Chat loading error");
     showError(error);
@@ -1863,12 +1892,59 @@ window.changeProfile=async()=>{
 
   if(name===null||!name.trim())return;
 
+  const newName=name.trim();
+
   try{
-    await updateDoc(doc(db,"users",currentUser.uid),{name:name.trim()});
-    await updateDoc(doc(db,"publicUsers",currentUser.uid),{name:name.trim()});
-    currentProfile.name=name.trim();
-    $("profileName").textContent=name.trim();
-    await ask("Success","Profile name updated.");
+    // Update both user profile documents.
+    await updateDoc(doc(db,"users",currentUser.uid),{
+      name:newName
+    });
+
+    await updateDoc(doc(db,"publicUsers",currentUser.uid),{
+      name:newName
+    });
+
+    // Update local profile.
+    currentProfile.name=newName;
+    $("profileName").textContent=newName;
+
+    // Find all existing chats of this account.
+    const chatsQuery=query(
+      collection(db,"chats"),
+      where("members","array-contains",currentUser.uid)
+    );
+
+    const chatsSnapshot=await getDocs(chatsQuery);
+
+    // Update this user's name in every chat document.
+    await Promise.all(chatsSnapshot.docs.map(async chatDoc=>{
+      const chatData=chatDoc.data();
+      const members=chatData.members||[];
+      const memberNames=[...(chatData.memberNames||[])];
+
+      const index=members.indexOf(currentUser.uid);
+
+      if(index!==-1){
+        while(memberNames.length<members.length){
+          memberNames.push("Mitra User");
+        }
+
+        memberNames[index]=newName;
+
+        await updateDoc(chatDoc.ref,{
+          memberNames:memberNames
+        });
+      }
+    }));
+
+    // Refresh current account chat list.
+    renderChats();
+
+    await ask(
+      "Success",
+      "Profile name updated successfully. Your name has also been updated in all existing chats."
+    );
+
   }catch(error){
     await ask("Profile Error",error.message);
   }
