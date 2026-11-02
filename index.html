@@ -421,17 +421,13 @@ function updateChatPresence(uid) {
 function filterChats() {
   const searchInput = $("search");
   if (!searchInput) return;
-
   const searchText = searchInput.value.trim().toLowerCase();
   const chatRows = document.querySelectorAll("#chats .chat");
-
   chatRows.forEach(row => {
     const rowText = row.textContent.toLowerCase();
     row.style.display = rowText.includes(searchText) ? "flex" : "none";
   });
 }
-
-
 function renderChats(){
   const list=$("chats");
   const hidden=new Set(settings.hiddenChatIds);
