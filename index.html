@@ -466,9 +466,11 @@ function renderChats(){
       openChat(c,otherId,name);
     };
 
-    attachLongPress(row,()=>chatListMenu(c));
+     attachLongPress(row,()=>chatListMenu(c));
     list.appendChild(row);
   });
+
+  filterChats();
 }
 
 async function findUserByMobile(number){
