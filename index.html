@@ -29,7 +29,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .tabs{display:flex;gap:22px;padding:14px 18px;color:var(--muted);font-size:14px}
 .tabs .active{color:var(--accent);font-weight:bold}
 .section{padding:8px 18px;font-weight:bold}
-.chat{display:flex;align-items:center;padding:13px 18px;gap:13px;background:var(--card);border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.chat{-webkit-touch-callout:none;touch-action:pan-y;display:flex;align-items:center;padding:13px 18px;gap:13px;background:var(--card);border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
 .avatar{width:49px;height:49px;flex-shrink:0;border-radius:50%;background:#e9e5ff;color:#6657e8;display:grid;place-items:center;font-size:21px;font-weight:bold}
 .details{flex:1;min-width:0}
 .name{font-weight:bold;margin-bottom:6px}
@@ -39,13 +39,12 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .bottom div{text-align:center;color:var(--muted);font-size:12px}
 .bottom b{display:block;font-size:21px;margin-bottom:5px}
 .bottom .selected{color:var(--accent)}
-.newchat{position:fixed;ri
-  ght:20px;bottom:85px;background:var(--accent);color:white;border:0;border-radius:17px;padding:15px 19px;font-size:22px}
+.newchat{position:fixed;right:20px;bottom:85px;background:var(--accent);color:white;border:0;border-radius:17px;padding:15px 19px;font-size:22px}
 #chatScreen{display:none;padding-bottom:75px}
 .chatHeader{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);position:sticky;top:0;z-index:2}
 .chatHeader button{border:0;background:transparent;color:var(--text);font-size:22px}
 #messages{padding:15px 12px 20px;min-height:55vh}
-.bubble{max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere}
+.bubble{-webkit-touch-callout:none;touch-action:pan-y;max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere}
 .bubble.mine{margin-left:auto;background:var(--accent);color:white}
 .bubble small{display:block;font-size:10px;opacity:.75;margin-top:5px}
 .bubble.deleted{font-style:italic;opacity:.7}
@@ -203,6 +202,41 @@ let messagesUnsubscribe=null;
 let showingHidden=false;
 let dialogResolve=null;
 let longPressTimer=null;
+
+// Reliable long-press handler for mouse, touch and pen.
+function attachLongPress(element, callback, delay=550){
+  let timer=null, startX=0, startY=0, triggered=false;
+  const clear=()=>{ if(timer!==null){clearTimeout(timer);timer=null;} };
+  const trigger=(event)=>{
+    if(triggered) return;
+    triggered=true;
+    element.dataset.longPressed="true";
+    if(event && event.cancelable) event.preventDefault();
+    callback(event);
+  };
+  element.addEventListener("pointerdown",event=>{
+    if(event.pointerType==="mouse" && event.button!==0) return;
+    clear(); triggered=false;
+    startX=event.clientX; startY=event.clientY;
+    timer=setTimeout(()=>{timer=null;trigger(event);},delay);
+  });
+  element.addEventListener("pointermove",event=>{
+    if(timer!==null && (Math.abs(event.clientX-startX)>12 ||
+      Math.abs(event.clientY-startY)>12)) clear();
+  });
+  ["pointerup","pointercancel","pointerleave"].forEach(type=>
+    element.addEventListener(type,clear)
+  );
+  element.addEventListener("contextmenu",event=>{
+    event.preventDefault(); clear(); trigger(event);
+  });
+  element.addEventListener("click",event=>{
+    if(element.dataset.longPressed==="true"){
+      event.preventDefault(); event.stopImmediatePropagation();
+      delete element.dataset.longPressed;
+    }
+  },true);
+}
 
 let settings={
 secretSalt:"",
@@ -479,29 +513,11 @@ row.innerHTML=`
 <div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>
 `;
 
-row._longPressed=false;
 row.onclick=()=>{
-if(row._longPressed){row._longPressed=false;return;}
+if(row.dataset.longPressed==="true") return;
 openChat(c,otherId,name);
 };
-
-row.addEventListener("contextmenu",e=>{
-e.preventDefault();
-row._longPressed=true;
-chatListMenu(c);
-});
-
-row.addEventListener("touchstart",()=>{
-row._longPressed=false;
-longPressTimer=setTimeout(()=>{
-row._longPressed=true;
-chatListMenu(c);
-},650);
-},{passive:true});
-
-["touchend","touchmove","touchcancel"].forEach(ev=>{
-row.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
-});
+attachLongPress(row,()=>chatListMenu(c));
 
 list.appendChild(row);
 
@@ -727,18 +743,7 @@ if(!deleted){
   actions.append(react,more);
   bubble.appendChild(actions);
 
-  bubble.addEventListener("contextmenu",e=>{
-    e.preventDefault();
-    messageMenu(m);
-  });
-
-  bubble.addEventListener("touchstart",()=>{
-    longPressTimer=setTimeout(()=>messageMenu(m),600);
-  },{passive:true});
-
-  ["touchend","touchmove","touchcancel"].forEach(ev=>{
-    bubble.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
-  });
+  attachLongPress(bubble,()=>messageMenu(m));
 }
 
 if(oldNode) oldNode.replaceWith(bubble);
@@ -858,9 +863,9 @@ window.sendMedia = async function(file) {
       fileSize:file.size,createdAt:serverTimestamp()
     });
     await updateDoc(doc(db,"chats",activeChat.id),{
-      lastMessage:file.type.startsWith("image/")?"📷 Photo":
-        file.type.startsWith("video/")?"🎥 Video":
-        file.type.startsWith("audio/")?"🎵 Audio":"📎 "+file.name,
+      lastMessage:(file.type||"").startsWith("image/")?"📷 Photo":
+        (file.type||"").startsWith("video/")?"🎥 Video":
+        (file.type||"").startsWith("audio/")?"🎵 Audio":"📎 "+file.name,
       lastMessageAt:serverTimestamp()
     });
     status("Connected to Mitra");
@@ -1046,81 +1051,47 @@ await ask("Delete Error",error.message);
 
 }
 
-// Chat options
+// Chat options: clickable menu, no number entry.
 window.chatOptions=async()=>{
+  if(!activeChat) return;
+  const chat=activeChat;
+  const hidden=settings.hiddenChatIds.includes(chat.id);
+  const choice=await showActionSheet("Chat options",[
+    {label:hidden?"🔓  Unhide chat":"🔒  Hide chat",value:"hide"},
+    {label:"🗑️  Delete chat for me",value:"delete",danger:true},
+    {label:"🧹  Clear chat for me",value:"clear",danger:true}
+  ]);
+  if(!choice) return;
 
-if(!activeChat)return;
+  if(choice==="hide"){
+    if(hidden) settings.hiddenChatIds=settings.hiddenChatIds.filter(id=>id!==chat.id);
+    else settings.hiddenChatIds.push(chat.id);
+    await saveSettings();
+    backHome();
+    return;
+  }
 
-const chat=activeChat;
+  if(choice==="delete"){
+    await deleteChatForMe(chat);
+    backHome();
+    return;
+  }
 
-const choice=await ask(
-"Chat Options",
-"1 Hide / Unhide\n2 Delete Chat for Me\n3 Clear Chat for Me",
-true
-);
-
-if(choice===null)return;
-
-const n=choice.trim();
-
-if(n==="1"){
-
-if(settings.hiddenChatIds.includes(chat.id)){
-
-settings.hiddenChatIds=
-settings.hiddenChatIds.filter(x=>x!==chat.id);
-
-}else{
-
-settings.hiddenChatIds.push(chat.id);
-
-}
-  await saveSettings();
-backHome();
-
-}else if(n==="2"){
-
-await deleteChatForMe(chat);
-backHome();
-
-}else if(n==="3"){
-
-if(await confirmBox("Hide all current messages from your account only?")){
-
-try{
-
-const snap=await getDocs(
-collection(db,"chats",chat.id,"messages")
-);
-
-for(const message of snap.docs){
-
-const ref=doc(
-db,"chats",chat.id,"messages",message.id,
-"deletedFor",currentUser.uid
-);
-
-if(!(await getDoc(ref)).exists()){
-
-await setDoc(ref,{
-messageId:message.id,
-deletedAt:serverTimestamp()
-});
-
-}
-
-}
-
-}catch(error){
-
-await ask("Clear Error",error.message);
-
-}
-
-}
-
-}
-
+  if(choice==="clear"){
+    if(!await confirmBox("Hide all current messages from your account only?")) return;
+    try{
+      const snap=await getDocs(collection(db,"chats",chat.id,"messages"));
+      for(const message of snap.docs){
+        const hiddenRef=doc(db,"chats",chat.id,"messages",message.id,
+          "deletedFor",currentUser.uid);
+        if(!(await getDoc(hiddenRef)).exists()){
+          await setDoc(hiddenRef,{messageId:message.id,deletedAt:serverTimestamp()});
+        }
+      }
+    }catch(error){
+      await ask("Clear Error",error.message);
+    }
+  }
 };
 
 // Save settings
