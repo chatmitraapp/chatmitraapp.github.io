@@ -1065,6 +1065,32 @@ window.sendMessage=async()=>{
       lastMessage:text,
       lastMessageAt:serverTimestamp()
     });
+
+    // Send a push notification through the Cloudflare Worker.
+    // Push failures must not undo or report failure for a message already saved.
+    try{
+      const firebaseIdToken = await currentUser.getIdToken();
+      const pushResponse = await fetch("https://mitra-push.deveshbabu2001.workers.dev/",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization":"Bearer " + firebaseIdToken
+        },
+        body:JSON.stringify({
+          chatId:activeChat.id,
+          text,
+          senderName:currentProfile?.name || "Mitra User"
+        })
+      });
+      const pushResult = await pushResponse.json().catch(()=>({}));
+      if(!pushResponse.ok){
+        console.warn("Mitra push notification failed:",pushResult.error || pushResponse.status);
+      }else{
+        console.log("Mitra push result:",pushResult);
+      }
+    }catch(pushError){
+      console.warn("Mitra push request could not be completed:",pushError);
+    }
   }catch(error){
     input.value=text;
     showError(error);
