@@ -26,6 +26,11 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .details{flex:1;min-width:0}
 .name{font-weight:bold;margin-bottom:6px}
 .message{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .presence{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:4px;
+}
 .time{font-size:11px;color:var(--muted)}
 .bottom{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;background:var(--card);padding:13px 5px;border-top:1px solid var(--line);z-index:3}
 .bottom div{text-align:center;color:var(--muted);font-size:12px}
@@ -386,41 +391,74 @@ function formatLastSeen(timestamp) {
   });
 }
 
+
 function renderChats(){
   const list=$("chats");
   const hidden=new Set(settings.hiddenChatIds);
   const deleted=new Set(settings.deletedChatIds);
-  let visible=allChats.filter(c=>!deleted.has(c.id)&&(showingHidden?hidden.has(c.id):!hidden.has(c.id)));
-  visible.sort((a,b)=>(b.lastMessageAt?.toMillis?.()||0)-(a.lastMessageAt?.toMillis?.()||0));
+
+  let visible=allChats.filter(c=>
+    !deleted.has(c.id)&&
+    (showingHidden?hidden.has(c.id):!hidden.has(c.id))
+  );
+
+  visible.sort((a,b)=>
+    (b.lastMessageAt?.toMillis?.()||0)-
+    (a.lastMessageAt?.toMillis?.()||0)
+  );
+
   $("listTitle").textContent=showingHidden?"Hidden Chats":"Recent Chats";
-  if(!visible.length){list.innerHTML='<div class="notice">No chats yet. Tap ＋ to start.</div>';return;}
+
+  if(!visible.length){
+    list.innerHTML='<div class="notice">No chats yet. Tap ＋ to start.</div>';
+    return;
+  }
+
   list.innerHTML="";
+
   visible.forEach(c=>{
     const otherId=c.members?.find(id=>id!==currentUser.uid);
     const idx=c.members?.indexOf(otherId);
     const name=c.memberNames?.[idx]||"Mitra User";
+
+    if(otherId) listenPresence(otherId);
+
+    const presence=presenceCache[otherId]||{};
+    const isOnline=presence.state==="online";
+
+    const statusText=isOnline
+      ?"🟢 Online"
+      :formatLastSeen(presence.lastChanged);
+
     const row=document.createElement("div");
     row.className="chat";
-    row.innerHTML=`<div class="avatar">${escapeHTML(name.charAt(0).toUpperCase())}</div>
-      <div class="details"><div class="name">${escapeHTML(name)}</div>
-      <div class="message">${escapeHTML(c.lastMessage||"Start chatting")}</div></div>
-      <div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>`;
+
+    row.innerHTML=`
+      <div class="avatar">${escapeHTML(name.charAt(0).toUpperCase())}</div>
+      <div class="details">
+        <div class="name">${escapeHTML(name)}</div>
+        <div class="message">${escapeHTML(c.lastMessage||"Start chatting")}</div>
+        <div class="presence">${escapeHTML(statusText)}</div>
+      </div>
+      <div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>
+    `;
+
     row._longPressTriggered=false;
+
     row.onclick=()=>{
-      if(row._longPressTriggered){row._longPressTriggered=false;return;}
+      if(row._longPressTriggered){
+        row._longPressTriggered=false;
+        return;
+      }
       openChat(c,otherId,name);
     };
+
     attachLongPress(row,()=>chatListMenu(c));
     list.appendChild(row);
   });
+
   filterChats();
 }
-window.filterChats=()=>{
-  const value=$("search").value.trim().toLowerCase();
-  document.querySelectorAll("#chats .chat").forEach(row=>{
-    row.style.display=row.innerText.toLowerCase().includes(value)?"flex":"none";
-  });
-};
 
 async function findUserByMobile(number){
   const q=query(collection(db,"publicUsers"),where("mobile","==",number));
