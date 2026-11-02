@@ -415,112 +415,208 @@ async function createChatWithNumber(number){
   }catch(error){status("Error");showError(error);}
 }
   // Open chat and load all messages together
-function openChat(chat,otherId,name){
-  activeChat=chat;
-  $("settingsPanel").style.display="none";
-  $("homeScreen").style.display="none";
-  $("homeHeader").style.display="none";
-  $("bottomNav").style.display="none";
-  $("chatScreen").style.display="block";
-  $("chatName").textContent=name||"Mitra User";
-  $("chatAvatar").textContent=(name||"M").charAt(0).toUpperCase();
+// Open chat and load all messages without duplicates
+let messageRenderVersion = 0;
 
-  if(messagesUnsubscribe)messagesUnsubscribe();
+function openChat(chat, otherId, name) {
+  activeChat = chat;
 
-  const box=$("messages");
-  box.innerHTML='<div class="notice">Loading all messages...</div>';
+  $("settingsPanel").style.display = "none";
+  $("homeScreen").style.display = "none";
+  $("homeHeader").style.display = "none";
+  $("bottomNav").style.display = "none";
+  $("chatScreen").style.display = "block";
+
+  $("chatName").textContent = name || "Mitra User";
+  $("chatAvatar").textContent = (name || "M").charAt(0).toUpperCase();
+
+  if (messagesUnsubscribe) {
+    messagesUnsubscribe();
+    messagesUnsubscribe = null;
+  }
+
+  const box = $("messages");
+  box.innerHTML = '<div class="notice">Loading all messages...</div>';
   delete box.dataset.loaded;
 
-  const q=query(collection(db,"chats",chat.id,"messages"));
+  const currentChatId = chat.id;
+  const version = ++messageRenderVersion;
 
-  messagesUnsubscribe=onSnapshot(q,async snapshot=>{
-    try{
-      const wasAtBottom=box.scrollHeight-box.scrollTop-box.clientHeight<100;
-      const firstLoad=!box.dataset.loaded;
+  const messagesQuery = query(
+    collection(db, "chats", currentChatId, "messages")
+  );
 
-      // First snapshot: process every old message at the same time.
-      const changes=snapshot.docChanges();
+  messagesUnsubscribe = onSnapshot(
+    messagesQuery,
+    async snapshot => {
+      const renderVersion = ++messageRenderVersion;
 
-      const updates=await Promise.all(changes.map(async change=>{
-        const messageId=change.doc.id;
-        const oldNode=box.querySelector(`[data-message-id="${messageId}"]`);
+      try {
+        const wasAtBottom =
+          box.scrollHeight - box.scrollTop - box.clientHeight < 100;
 
-        if(change.type==="removed")return {type:"removed",oldNode};
+        // Get every message from the snapshot.
+        const messageTasks = snapshot.docs.map(async messageDoc => {
+          const m = {
+            id: messageDoc.id,
+            ...messageDoc.data()
+          };
 
-        const m={id:messageId,...change.doc.data()};
-        const hiddenRef=doc(db,"chats",chat.id,"messages",m.id,"deletedFor",currentUser.uid);
-        const reactionRef=collection(db,"chats",chat.id,"messages",m.id,"reactions");
+          const hiddenRef = doc(
+            db,
+            "chats",
+            currentChatId,
+            "messages",
+            m.id,
+            "deletedFor",
+            currentUser.uid
+          );
 
-        const [hiddenSnap,reactionSnap]=await Promise.all([
-          getDoc(hiddenRef),
-          getDocs(reactionRef)
-        ]);
+          const reactionRef = collection(
+            db,
+            "chats",
+            currentChatId,
+            "messages",
+            m.id,
+            "reactions"
+          );
 
-        if(hiddenSnap.exists())return {type:"hidden",oldNode};
+          const [hiddenSnap, reactionSnap] = await Promise.all([
+            getDoc(hiddenRef),
+            getDocs(reactionRef)
+          ]);
 
-        const reactionCounts={};
-        reactionSnap.forEach(r=>{
-          const emoji=r.data().emoji;
-          reactionCounts[emoji]=(reactionCounts[emoji]||0)+1;
+          if (hiddenSnap.exists()) {
+            return null;
+          }
+
+          const reactionCounts = {};
+
+          reactionSnap.forEach(r => {
+            const emoji = r.data().emoji;
+            if (emoji) {
+              reactionCounts[emoji] =
+                (reactionCounts[emoji] || 0) + 1;
+            }
+          });
+
+          const reactionHTML = Object.entries(reactionCounts)
+            .map(([emoji, count]) => emoji + " " + count)
+            .join(" ");
+
+          return {
+            message: m,
+            reactionHTML
+          };
         });
 
-        const reactionHTML=Object.entries(reactionCounts)
-          .map(([emoji,count])=>emoji+" "+count).join(" ");
+        // Load all messages together.
+        const results = await Promise.all(messageTasks);
 
-        const deleted=m.deletedForEveryone===true;
-        const bubble=document.createElement("div");
-        bubble.dataset.messageId=m.id;
-        bubble.dataset.createdAt=String(m.createdAt?.toMillis?.()||0);
-        bubble.className="bubble "+
-          (m.senderId===currentUser.uid?"mine ":"")+
-          (deleted?"deleted":"");
-
-        const contentHTML=deleted?"This message was deleted":escapeHTML(m.text||"");
-
-        bubble.innerHTML=`
-          <div>${contentHTML}</div>
-          <small>${m.senderId===currentUser.uid?"You":"Mitra User"} ${m.edited?"· edited":""}</small>
-          ${reactionHTML?`<div class="reactionLine">${reactionHTML}</div>`:""}
-        `;
-
-        if(!deleted)attachLongPress(bubble,()=>messageMenu(m));
-
-        return {type:"upsert",oldNode,bubble};
-      }));
-
-      // Render after all messages have been prepared.
-      updates.forEach(update=>{
-        if(update.type==="removed"||update.type==="hidden"){
-          update.oldNode?.remove();
-        }else if(update.type==="upsert"){
-          if(update.oldNode)update.oldNode.replaceWith(update.bubble);
-          else box.appendChild(update.bubble);
+        // Ignore an older request if a newer snapshot arrived.
+        if (
+          renderVersion !== messageRenderVersion ||
+          !activeChat ||
+          activeChat.id !== currentChatId
+        ) {
+          return;
         }
-      });
 
-      // Keep chronological order.
-      const sortedNodes=[...box.querySelectorAll("[data-message-id]")]
-        .sort((a,b)=>Number(a.dataset.createdAt)-Number(b.dataset.createdAt));
+        const validMessages = results.filter(Boolean);
 
-      sortedNodes.forEach(node=>box.appendChild(node));
+        // Sort oldest to newest. Pending timestamps stay at bottom.
+        validMessages.sort((a, b) => {
+          const timeA =
+            a.message.createdAt?.toMillis?.() ?? Number.MAX_SAFE_INTEGER;
 
-      if(!box.querySelector("[data-message-id]")){
-        box.innerHTML='<div class="notice">Say hello 👋</div>';
-      }else{
-        box.querySelector(".notice")?.remove();
+          const timeB =
+            b.message.createdAt?.toMillis?.() ?? Number.MAX_SAFE_INTEGER;
+
+          return timeA - timeB;
+        });
+
+        // Build a fresh list, so the same message cannot appear twice.
+        const fragment = document.createDocumentFragment();
+
+        validMessages.forEach(item => {
+          const m = item.message;
+          const deleted = m.deletedForEveryone === true;
+
+          const bubble = document.createElement("div");
+
+          bubble.dataset.messageId = m.id;
+          bubble.dataset.createdAt = String(
+            m.createdAt?.toMillis?.() ?? Number.MAX_SAFE_INTEGER
+          );
+
+          bubble.className =
+            "bubble " +
+            (m.senderId === currentUser.uid ? "mine " : "") +
+            (deleted ? "deleted" : "");
+
+          const contentHTML = deleted
+            ? "This message was deleted"
+            : escapeHTML(m.text || "");
+
+          bubble.innerHTML = `
+            <div>${contentHTML}</div>
+            <small>
+              ${m.senderId === currentUser.uid ? "You" : "Mitra User"}
+              ${m.edited ? "· edited" : ""}
+            </small>
+            ${
+              item.reactionHTML
+                ? `<div class="reactionLine">${item.reactionHTML}</div>`
+                : ""
+            }
+          `;
+
+          if (!deleted) {
+            attachLongPress(bubble, () => messageMenu(m));
+          }
+
+          fragment.appendChild(bubble);
+        });
+
+        // Replace the complete message list in one operation.
+        box.replaceChildren(fragment);
+
+        if (validMessages.length === 0) {
+          box.innerHTML = '<div class="notice">Say hello 👋</div>';
+        }
+
+        box.dataset.loaded = "true";
+
+        // Scroll to bottom on first load or if user was already at bottom.
+        if (!wasAtBottom && box.dataset.firstLoad === "true") {
+          box.scrollTop = box.scrollHeight;
+        } else if (!box.dataset.firstLoad) {
+          box.scrollTop = box.scrollHeight;
+          box.dataset.firstLoad = "true";
+        } else if (wasAtBottom) {
+          box.scrollTop = box.scrollHeight;
+        }
+
+      } catch (error) {
+        if (renderVersion !== messageRenderVersion) return;
+
+        showError(error);
+
+        box.innerHTML =
+          '<div class="notice">Could not load messages: ' +
+          escapeHTML(error.message) +
+          '</div>';
       }
-
-      if(firstLoad||wasAtBottom)box.scrollTop=box.scrollHeight;
-      box.dataset.loaded="true";
-
-    }catch(error){
+    },
+    error => {
       showError(error);
-      box.innerHTML='<div class="notice">Could not load messages: '+escapeHTML(error.message)+'</div>';
+
+      box.innerHTML =
+        '<div class="notice">Message error: ' +
+        escapeHTML(error.message) +
+        '</div>';
     }
-  },error=>{
-    $("messages").innerHTML='<div class="notice">Message error: '+escapeHTML(error.message)+'</div>';
-    showError(error);
-  });
+  );
 }
 
 // Back to home
