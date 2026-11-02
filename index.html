@@ -457,10 +457,12 @@ function openChat(chat, otherId, name) {
 
         // Get every message from the snapshot.
         const messageTasks = snapshot.docs.map(async messageDoc => {
-          const m = {
-            id: messageDoc.id,
-            ...messageDoc.data()
-          };
+        const m = {
+  id: messageDoc.id,
+  ...messageDoc.data({
+    serverTimestamps: "estimate"
+  })
+};
 
           const hiddenRef = doc(
             db,
