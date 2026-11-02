@@ -42,6 +42,12 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .chatHeader button{border:0;background:transparent;color:var(--text);font-size:22px}
 #messages{padding:15px 12px 20px;min-height:55vh}
 .bubble{max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere}
+.messageRow{display:flex;align-items:center;gap:7px;margin:7px 0}
+.messageRow.mine{justify-content:flex-end}
+.messageRow.theirs{justify-content:flex-start}
+.messageRow .bubble{margin:0;max-width:calc(84% - 34px)}
+.quickReact{flex:0 0 30px;width:30px;height:30px;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--muted);font-size:17px;display:grid;place-items:center;cursor:pointer}
+.quickReact:active{transform:scale(.94)}
 .bubble.mine{margin-left:auto;background:var(--accent);color:white}
 .bubble small{display:block;font-size:10px;opacity:.75;margin-top:5px}
 .dateSeparator{
@@ -780,7 +786,29 @@ updateChatPresence(otherId);
             attachLongPress(bubble, () => messageMenu(m));
           }
 
-          fragment.appendChild(bubble);
+          const messageRow = document.createElement("div");
+          const mine = m.senderId === currentUser.uid;
+          messageRow.className = "messageRow " + (mine ? "mine" : "theirs");
+
+          const quickButton = document.createElement("button");
+          quickButton.type = "button";
+          quickButton.className = "quickReact";
+          quickButton.textContent = "☺";
+          quickButton.title = "Add reaction";
+          quickButton.setAttribute("aria-label", "Add reaction");
+          quickButton.addEventListener("click", event => {
+            event.stopPropagation();
+            pickMessageReaction(m);
+          });
+
+          if (mine) {
+            messageRow.appendChild(quickButton);
+            messageRow.appendChild(bubble);
+          } else {
+            messageRow.appendChild(bubble);
+            messageRow.appendChild(quickButton);
+          }
+          fragment.appendChild(messageRow);
         });
 
         // Replace the complete message list in one operation.
@@ -887,11 +915,104 @@ window.sendMessage=async()=>{
   }
 };
 
+async function pickMessageReaction(message){
+  const groups = [
+    ["Smileys & emotions", "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 🙂‍↕️ 🙂‍↔️ 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😶‍🌫️ 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🫡 🤫 🫠 🤥 😶 😐 😑 😬 🫨 🥱 😴 🤤 😪 😮‍💨 😵 😵‍💫 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 💀 ☠️ 👻 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾"],
+    ["Hands & people", "👋 🤚 🖐️ ✋ 🖖 🫱 🫲 🫳 🫴 🫷 🫸 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 🫵 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦 👶 🧒 👦 👧 🧑 👨 👩 🧔 🧔‍♀️ 🧔‍♂️ 👱 👱‍♀️ 👱‍♂️ 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 🥷 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🫃 🫄 🤱 👩‍🍼 👨‍🍼 🧑‍🍼 🎅 🤶 🧑‍🎄 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 💆 💇 🚶 🧍 🧎 🏃 💃 🕺 🕴️ 👯 🧖 🧗 🏇 🏂 🏄 🚣 🏊 ⛹️ 🏋️ 🚴 🚵 🤸 🤼 🤽 🤾 🤹 🧘 🛀 🛌"],
+    ["Animals & nature", "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐦‍⬛ 🐤 🐣 🐥 🪿 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🫎 🫏 🦄 🐝 🪱 🐛 🦋 🐌 🪲 🐞 🐜 🪰 🪻 🪳 🦟 🦗 🕷️ 🕸️ 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🪼 🪸 🐡 🐠 🐟 🐬 🦭 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🫏 🦍 🦧 🦣 🐘 🦛 🦏 🐪 🐫 🦒 🦘 🦬 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🐩 🦮 🐕‍🦺 🐈 🐈‍⬛ 🪽 🪶 🐓 🦃 🦤 🦚 🦜 🦢 🦩 🕊️ 🐇 🦝 🦨 🦡 🦫 🦦 🦥 🐁 🐀 🐿️ 🦔 🐾 🌵 🎄 🌲 🌳 🌴 🪵 🌱 🌿 ☘️ 🍀 🎍 🪴 🎋 🍃 🍂 🍁 🪺 🪹 🍄 🌾 💐 🌷 🪷 🌹 🥀 🌺 🌸 🌼 🌻 🌞 🌝 🌛 🌜 🌚 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 🌙 🌎 🌍 🌏 🪐 💫 ⭐ 🌟 ✨ ⚡ ☄️ 💥 🔥 🌪️ 🌈 ☀️ 🌤️ ⛅ 🌥️ ☁️ 🌦️ 🌧️ ⛈️ 🌩️ 🌨️ ❄️ ☃️ ⛄ 🌬️ 💨 💧 💦 ☔ ☂️ 🌊"],
+    ["Food & drink", "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🫒 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🥜 🫘 🌰 🫚 🫛 🍄‍🟫 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🫕 🥣 🥗 🍿 🧈 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍠 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🫖 🍵 🍶 🍾 🍷 🍸 🍹 🍺 🍻 🥂 🥃 🫗 🥤 🧋 🧃 🧉 🧊"],
+    ["Travel & places", "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🛹 🛼 🚏 🛣️ 🛤️ 🛢️ ⛽ 🛞 🚨 🚥 🚦 🚧 ⚓ 🛟 ⛵ 🛶 🚤 🛳️ ⛴️ 🛥️ 🚢 ✈️ 🛩️ 🛫 🛬 🪂 💺 🚁 🚟 🚠 🚡 🛰️ 🚀 🛸 🌍 🗺️ 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🪨 🪵 🛖 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏩 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🏙️ 🌄 🌅 🌆 🌇 🌉 ♨️ 🎠 🛝 🎡 🎢 💈"],
+    ["Activities & sports", "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🚣 🏊 🚴 🚵 🧗 🪇 🎯 🪈 🪉 🎮 🕹️ 🎰 🎲 🧩 🧸 🪅 🪩 🪆 ♟️ 🎭 🎨 🧵 🪡 🧶 🪢 🎼 🎵 🎶 🎤 🎧 🎼 🎹 🥁 🪘 🎷 🎺 🪗 🎸 🪕 🎻 🪇 🎬 🎟️ 🎫"],
+    ["Objects & symbols", "⌚ 📱 📲 💻 🖥️ 🖨️ ⌨️ 🖱️ 🖲️ 💽 💾 💿 📀 🧮 🎥 🎞️ 📽️ 📺 📷 📸 📹 📼 🔍 🔎 💡 🔦 🏮 🪔 📔 📕 📖 📗 📘 📙 📚 📓 📒 📃 📜 📄 📰 🗞️ 📑 🔖 🏷️ 💰 🪙 💴 💵 💶 💷 💸 💳 🧾 💹 ✉️ 📧 📨 📩 📤 📥 📦 📫 📪 📬 📭 📮 🗳️ ✏️ ✒️ 🖋️ 🖊️ 🖌️ 🖍️ 📝 💼 📁 📂 🗂️ 📅 📆 🗒️ 🗓️ 📇 📈 📉 📊 📋 📌 📍 📎 🖇️ 📏 📐 ✂️ 🗃️ 🗄️ 🗑️ 🔒 🔓 🔏 🔐 🔑 🗝️ 🔨 🪓 ⛏️ ⚒️ 🛠️ 🗡️ ⚔️ 💣 🪃 🏹 🛡️ 🔧 🪛 🔩 ⚙️ 🗜️ ⚖️ 🦯 🔗 ⛓️ 🪝 🧰 🧲 🪜 🧪 🧫 🧬 🔬 🔭 📡 💉 🩸 💊 🩹 🩺 🩻 🚪 🛗 🪞 🪟 🛏️ 🛋️ 🪑 🚽 🪠 🚿 🛁 🪤 🪒 🧴 🧷 🧹 🧺 🧻 🪣 🧼 🫧 🪥 🧽 🧯 🛒 🚬 ⚰️ 🪦 ⚱️ 🧿 🪬 🗿 🪧"],
+    ["Hearts, signs & flags", "❤️ 🧡 💛 💚 💙 🩵 💜 🤎 🖤 🩶 🤍 💔 ❤️‍🔥 ❤️‍🩹 💕 💞 💓 💗 💖 💘 💝 💟 ❣️ 💌 💋 💯 💢 💥 💫 💦 💨 🕳️ 💬 👁️‍🗨️ 🗨️ 🗯️ 💭 💤 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ 🆔 ⚛️ 🉑 ☢️ ☣️ 📴 📳 🈶 🈚 🈸 🈺 🈷️ ✴️ 🆚 💮 🉐 ㊙️ ㊗️ 🈴 🈵 🈹 🈲 🅰️ 🅱️ 🆎 🆑 🅾️ 🆘 ❌ ⭕ 🛑 ⛔ 📛 🚫 💯 💢 ♨️ 🚷 🚯 🚳 🚱 🔞 📵 🚭 ❗ ❕ ❓ ❔ ‼️ ⁉️ 🔅 🔆 ⚠️ 🚸 🔱 ⚜️ 🔰 ♻️ ✅ ❇️ ✳️ ❎ 🌐 💠 Ⓜ️ 🌀 ➿ 🌈 ✨ ⭐ 🌟 💫 🎉 🎊 🎈 🎁 🎀 🏆 🥇 🥈 🥉 🏅 🎖️"]
+  ];
+
+  return new Promise(resolve=>{
+    const overlay=$("overlay");
+    const oldActions=$("dialogActions");
+    const dialog=$("dialogTitle").parentNode;
+    $("dialogTitle").textContent="Choose a reaction";
+    $("dialogText").textContent="Select an emoji";
+    $("dialogInput").style.display="none";
+    oldActions.style.display="none";
+
+    let picker=document.getElementById("emojiPicker");
+    if(!picker){
+      picker=document.createElement("div");
+      picker.id="emojiPicker";
+      picker.style.cssText="max-height:55vh;overflow:auto;margin-top:12px";
+      dialog.insertBefore(picker,oldActions);
+    }
+    picker.innerHTML="";
+    picker.style.display="block";
+
+    const finish=value=>{
+      picker.style.display="none";
+      picker.innerHTML="";
+      oldActions.style.display="flex";
+      overlay.style.display="none";
+      resolve(value);
+    };
+
+    groups.forEach(([label,items])=>{
+      const heading=document.createElement("div");
+      heading.textContent=label;
+      heading.style.cssText="font-weight:700;font-size:13px;margin:14px 0 7px";
+      picker.appendChild(heading);
+
+      const grid=document.createElement("div");
+      grid.style.cssText="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px";
+      items.split(/\s+/).forEach(emoji=>{
+        const button=document.createElement("button");
+        button.type="button";
+        button.textContent=emoji;
+        button.title=emoji;
+        button.style.cssText="border:0;border-radius:8px;background:var(--bg);font-size:23px;min-height:39px;cursor:pointer";
+        button.onclick=()=>finish(emoji);
+        grid.appendChild(button);
+      });
+      picker.appendChild(grid);
+    });
+
+    const cancel=document.createElement("button");
+    cancel.type="button";
+    cancel.textContent="Cancel";
+    cancel.style.cssText="width:100%;margin-top:12px;padding:11px;border:0;border-radius:10px;background:var(--bg);color:var(--text)";
+    cancel.onclick=()=>finish(null);
+    picker.appendChild(cancel);
+    overlay.style.display="flex";
+  }).then(async choice=>{
+    if(!choice)return;
+    try{
+      const reactionRef=doc(
+        db,"chats",activeChat.id,"messages",message.id,
+        "reactions",currentUser.uid
+      );
+      const existing=await getDoc(reactionRef);
+
+      if(existing.exists() && existing.data().emoji===choice){
+        await deleteDoc(reactionRef);
+      }else{
+        await setDoc(reactionRef,{
+          userId:currentUser.uid,
+          emoji:choice,
+          updatedAt:serverTimestamp()
+        });
+      }
+    }catch(error){
+      showError(error);
+      await ask("Reaction Error",error.message);
+    }
+  });
+}
+
+
 // Message actions: open only with long press
 async function messageMenu(message){
   if(!activeChat||message.deletedForEveryone)return;
   const mine=message.senderId===currentUser.uid;
   const actions=[
+    {label:"😀  React",value:"react"},
     ...(mine?[{label:"ℹ️  Info",value:"info"}]:[]),
     ...(mine&&message.type==="text"?[{label:"✏️  Edit message",value:"edit"}]:[]),
     {label:"📋  Copy",value:"copy"},
@@ -902,6 +1023,7 @@ async function messageMenu(message){
 
   const choice=await showActionSheet("Message options",actions);
   if(!choice)return;
+  if(choice==="react")return pickMessageReaction(message);
 
   try{
     const ref=doc(db,"chats",activeChat.id,"messages",message.id);
