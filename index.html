@@ -244,6 +244,8 @@ import { startPresence, stopPresence } from "./presence.js";
     
 let currentUser=null;
 let currentProfile=null;
+let publicNameCache=new Map();
+let publicNameLoads=new Set();
 let allChats=[];
 let activeChat=null;
 let chatsUnsubscribe=null;
@@ -530,6 +532,8 @@ onAuthStateChanged(auth,async user=>{
       return;
     }
     currentUser=user;
+    publicNameCache.clear();
+    publicNameLoads.clear();
     restoreMitraNotificationStatus();
 setupMitraForegroundMessaging();
 startPresence(user.uid);
@@ -764,6 +768,45 @@ function scrollMessagesToBottom(behavior = "smooth") {
     box.scrollTo({ top: box.scrollHeight, behavior });
   });
 }
+
+async function refreshPublicChatName(chatId, otherId){
+  if(!otherId || publicNameCache.has(otherId) || publicNameLoads.has(otherId))return;
+  publicNameLoads.add(otherId);
+
+  try{
+    const profileSnap=await getDoc(doc(db,"publicUsers",otherId));
+    if(!profileSnap.exists())return;
+
+    const freshName=profileSnap.data().name;
+    if(!freshName)return;
+
+    publicNameCache.set(otherId,freshName);
+
+    const chat=allChats.find(c=>c.id===chatId);
+    if(chat){
+      const index=chat.members?.indexOf(otherId);
+      if(index!==-1 && index!==undefined){
+        chat.memberNames=[...(chat.memberNames||[])];
+        while(chat.memberNames.length<chat.members.length){
+          chat.memberNames.push("Mitra User");
+        }
+        chat.memberNames[index]=freshName;
+      }
+    }
+
+    if(activeChat?.id===chatId){
+      $("chatName").textContent=freshName;
+      $("chatAvatar").textContent=freshName.charAt(0).toUpperCase();
+    }
+
+    renderChats();
+  }catch(error){
+    console.warn("Could not refresh public chat name:",error);
+  }finally{
+    publicNameLoads.delete(otherId);
+  }
+}
+
 function renderChats(){
   const list=$("chats");
   const hidden=new Set(settings.hiddenChatIds);
@@ -791,9 +834,12 @@ function renderChats(){
   visible.forEach(c=>{
     const otherId=c.members?.find(id=>id!==currentUser.uid);
     const idx=c.members?.indexOf(otherId);
-    const name=c.memberNames?.[idx]||"Mitra User";
+    const name=publicNameCache.get(otherId)||c.memberNames?.[idx]||"Mitra User";
 
-    if(otherId) listenPresence(otherId);
+    if(otherId){
+      listenPresence(otherId);
+      refreshPublicChatName(c.id,otherId);
+    }
 
     const presence=presenceCache[otherId]||{};
     const isOnline=presence.state==="online";
@@ -881,9 +927,11 @@ function openChat(chat, otherId, name) {
   $("bottomNav").style.display = "none";
   $("chatScreen").style.display = "block";
 
-  $("chatName").textContent = name || "Mitra User";
-  $("chatAvatar").textContent = (name || "M").charAt(0).toUpperCase();
-    listenPresence(otherId);
+  const displayName=publicNameCache.get(otherId)||name||"Mitra User";
+  $("chatName").textContent = displayName;
+  $("chatAvatar").textContent = displayName.charAt(0).toUpperCase();
+  refreshPublicChatName(chat.id,otherId);
+  listenPresence(otherId);
 updateChatPresence(otherId);
 
   if (messagesUnsubscribe) {
