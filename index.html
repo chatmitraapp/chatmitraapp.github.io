@@ -41,6 +41,11 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .chatHeader{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);position:sticky;top:0;z-index:2}
 .chatHeader button{border:0;background:transparent;color:var(--text);font-size:22px}
 #messages{padding:15px 12px 20px;min-height:55vh}
+/* Keep the chat timeline above the composer and the on-screen keyboard. */
+#chatScreen{position:fixed;inset:0;z-index:4;padding:0;overflow:hidden;background:var(--bg)}
+#chatScreen .chatHeader{position:absolute;top:0;left:0;right:0;height:64px;box-sizing:border-box}
+#chatScreen #messages{position:absolute;top:64px;left:0;right:0;bottom:calc(var(--composer-height, 66px) + var(--keyboard-height, 0px));overflow-y:auto;min-height:0;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:24px}
+#chatScreen .composer{position:absolute;bottom:var(--keyboard-height, 0px);left:0;right:0;box-sizing:border-box}
 .bubble{max-width:84%;padding:11px 14px;margin:8px 0;border-radius:15px;background:var(--card);overflow-wrap:anywhere}
 .messageRow{display:flex;align-items:center;gap:7px;margin:7px 0}
 .messageRow.mine{justify-content:flex-end}
@@ -522,6 +527,16 @@ function filterChats() {
     row.style.display = rowText.includes(searchText) ? "flex" : "none";
   });
 }
+// Make this available to the inline oninput handler in the chat list.
+window.filterChats = filterChats;
+
+function scrollMessagesToBottom(behavior = "smooth") {
+  const box = $("messages");
+  if (!box) return;
+  requestAnimationFrame(() => {
+    box.scrollTo({ top: box.scrollHeight, behavior });
+  });
+}
 function renderChats(){
   const list=$("chats");
   const hidden=new Set(settings.hiddenChatIds);
@@ -981,10 +996,9 @@ window.sendMessage=async()=>{
   const input=$("messageInput");
   const text=input.value.trim();
   if(!text||!activeChat||!currentUser)return;
-  input.value="";
-  // Keep the message field focused so the mobile keyboard stays open.
-  // Refocus synchronously while the Send/Enter user gesture is still active.
+  // Keep the keyboard ready for the next message.
   try{ input.focus({preventScroll:true}); }catch(_){ input.focus(); }
+  input.value="";
   try{
     const messageData = {
       senderId:currentUser.uid,
@@ -999,6 +1013,7 @@ window.sendMessage=async()=>{
       senderName: currentReply.senderName || (currentReply.senderId === currentUser.uid ? (currentProfile?.name || "You") : (activeChat.memberNames?.[activeChat.members?.indexOf(currentReply.senderId)] || "Mitra User"))
     };
     await addDoc(collection(db,"chats",activeChat.id,"messages"),messageData);
+    scrollMessagesToBottom("smooth");
     cancelReply();
     await updateDoc(doc(db,"chats",activeChat.id),{
       lastMessage:text,
@@ -1642,6 +1657,33 @@ if("serviceWorker" in navigator){
       .catch(error=>console.error("SW Error:",error));
   });
 }
+</script>
+<script>
+(function(){
+  const chat = document.getElementById("chatScreen");
+  const composer = document.getElementById("composer");
+  const messages = document.getElementById("messages");
+  if (!chat || !composer || !messages) return;
+  function syncChatViewport(){
+    const vv = window.visualViewport;
+    const keyboardHeight = vv
+      ? Math.max(0, window.innerHeight - (vv.height + vv.offsetTop))
+      : 0;
+    chat.style.setProperty("--keyboard-height", keyboardHeight + "px");
+    chat.style.setProperty("--composer-height", composer.offsetHeight + "px");
+    const header = chat.querySelector(".chatHeader");
+    if (header) messages.style.top = header.offsetHeight + "px";
+  }
+  syncChatViewport();
+  window.addEventListener("resize", syncChatViewport);
+  if (window.visualViewport){
+    window.visualViewport.addEventListener("resize", syncChatViewport);
+    window.visualViewport.addEventListener("scroll", syncChatViewport);
+  }
+  if (window.ResizeObserver){
+    new ResizeObserver(syncChatViewport).observe(composer);
+  }
+})();
 </script>
 
 </body>
