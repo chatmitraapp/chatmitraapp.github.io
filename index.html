@@ -65,6 +65,12 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .dialogActions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
 .dialogActions button{border:0;border-radius:11px;padding:11px 14px;background:var(--bg);color:var(--text)}
 .dialogActions .primary{background:var(--accent);color:white}
+.actionSheet{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
+.actionSheet button{width:100%;text-align:left;border:0;border-radius:12px;padding:13px 14px;background:var(--bg);color:var(--text);cursor:pointer}
+.actionSheet button.danger{color:var(--danger)}
+.actionSheet button:active{transform:scale(.99)}
+.actionSheet .cancelAction{text-align:center;color:var(--muted);margin-top:4px}
+
 #settingsPanel{display:none;padding:18px 18px 90px}
 .settingRow{background:var(--card);padding:15px;border-bottom:1px solid var(--line);border-radius:12px;margin:8px 0;cursor:pointer}
 .errorText{color:var(--danger);font-size:12px;padding:5px 18px;overflow-wrap:anywhere}
@@ -177,6 +183,7 @@ getDocs,
 setDoc,
 addDoc,
 updateDoc,
+deleteDoc,
 query,
 where,
 onSnapshot,
@@ -248,6 +255,51 @@ dialogResolve=null;
 
 async function confirmBox(text){
 return (await ask("Mitra",text))===true;
+}
+
+function showActionSheet(title,actions){
+return new Promise(resolve=>{
+const overlay=$("overlay");
+$("dialogTitle").textContent=title;
+$("dialogText").textContent="";
+$("dialogInput").style.display="none";
+const old=$("dialogActions");
+old.innerHTML="";
+old.style.display="none";
+let sheet=document.getElementById("actionSheet");
+if(!sheet){
+sheet=document.createElement("div");
+sheet.id="actionSheet";
+sheet.className="actionSheet";
+old.parentNode.insertBefore(sheet,old);
+}
+sheet.innerHTML="";
+actions.forEach(action=>{
+const button=document.createElement("button");
+button.type="button";
+button.textContent=action.label;
+if(action.danger)button.classList.add("danger");
+button.onclick=()=>{
+overlay.style.display="none";
+sheet.innerHTML="";
+old.style.display="flex";
+resolve(action.value);
+};
+sheet.appendChild(button);
+});
+const cancel=document.createElement("button");
+cancel.type="button";
+cancel.className="cancelAction";
+cancel.textContent="Cancel";
+cancel.onclick=()=>{
+overlay.style.display="none";
+sheet.innerHTML="";
+old.style.display="flex";
+resolve(null);
+};
+sheet.appendChild(cancel);
+overlay.style.display="flex";
+});
 }
 
 window.toggleTheme=()=>{
@@ -423,15 +475,24 @@ row.innerHTML=`
 <div class="time">${hidden.has(c.id)?"🔒":"⋮"}</div>
 `;
 
-row.onclick=()=>openChat(c,otherId,name);
+row._longPressed=false;
+row.onclick=()=>{
+if(row._longPressed){row._longPressed=false;return;}
+openChat(c,otherId,name);
+};
 
 row.addEventListener("contextmenu",e=>{
 e.preventDefault();
+row._longPressed=true;
 chatListMenu(c);
 });
 
 row.addEventListener("touchstart",()=>{
-longPressTimer=setTimeout(()=>chatListMenu(c),650);
+row._longPressed=false;
+longPressTimer=setTimeout(()=>{
+row._longPressed=true;
+chatListMenu(c);
+},650);
 },{passive:true});
 
 ["touchend","touchmove","touchcancel"].forEach(ev=>{
@@ -577,110 +638,120 @@ messagesUnsubscribe=onSnapshot(q,async snapshot=>{
 
 try{
 
-const messages=snapshot.docs.map(d=>({
-id:d.id,
-...d.data()
-}));
+const box=$("messages");
+const wasAtBottom =
+  box.scrollHeight - box.scrollTop - box.clientHeight < 100;
+const firstLoad = !box.dataset.loaded;
+const changes = snapshot.docChanges();
 
-messages.sort((a,b)=>
-(a.createdAt?.toMillis?.()||0)-
-(b.createdAt?.toMillis?.()||0)
-);
+for(const change of changes){
 
-$("messages").innerHTML="";
+const messageId=change.doc.id;
+const oldNode=box.querySelector(`[data-message-id="${messageId}"]`);
 
-for(const m of messages){
+if(change.type==="removed"){
+  oldNode?.remove();
+  continue;
+}
+
+const m={id:messageId,...change.doc.data()};
 
 const hiddenRef=doc(
-db,"chats",chat.id,"messages",m.id,
-"deletedFor",currentUser.uid
+  db,"chats",chat.id,"messages",m.id,
+  "deletedFor",currentUser.uid
 );
-
 const hiddenSnap=await getDoc(hiddenRef);
 
-if(hiddenSnap.exists())continue;
+if(hiddenSnap.exists()){
+  oldNode?.remove();
+  continue;
+}
 
 const deleted=m.deletedForEveryone===true;
-
 const bubble=document.createElement("div");
-
+bubble.dataset.messageId=m.id;
+bubble.dataset.createdAt=String(m.createdAt?.toMillis?.()||0);
 bubble.className=
-"bubble "+
-(m.senderId===currentUser.uid?"mine ":"")+
-(deleted?"deleted":"");
+  "bubble "+
+  (m.senderId===currentUser.uid?"mine ":"")+
+  (deleted?"deleted":"");
 
 const reactionSnap=await getDocs(
-collection(db,"chats",chat.id,"messages",m.id,"reactions")
+  collection(db,"chats",chat.id,"messages",m.id,"reactions")
 );
-
 const reactionCounts={};
-
 reactionSnap.forEach(r=>{
-const emoji=r.data().emoji;
-reactionCounts[emoji]=(reactionCounts[emoji]||0)+1;
+  const emoji=r.data().emoji;
+  reactionCounts[emoji]=(reactionCounts[emoji]||0)+1;
 });
-
 const reactionHTML=Object.entries(reactionCounts)
-.map(([emoji,count])=>emoji+" "+count)
-.join(" ");
+  .map(([emoji,count])=>emoji+" "+count)
+  .join(" ");
 
 bubble.innerHTML=`
-<div>${deleted?"This message was deleted":escapeHTML(m.text)}</div>
-<small>${m.senderId===currentUser.uid?"You":"Mitra User"} ${m.edited?"· edited":""}</small>
-${reactionHTML?`<div class="reactionLine">${reactionHTML}</div>`:""}
+  <div>${deleted?"This message was deleted":escapeHTML(m.text)}</div>
+  <small>${m.senderId===currentUser.uid?"You":"Mitra User"} ${m.edited?"· edited":""}</small>
+  ${reactionHTML?`<div class="reactionLine">${reactionHTML}</div>`:""}
 `;
 
 if(!deleted){
+  const actions=document.createElement("div");
+  actions.className="bubbleActions";
 
-const actions=document.createElement("div");
-actions.className="bubbleActions";
+  const react=document.createElement("button");
+  react.textContent="😊 React";
+  react.onclick=()=>reactionMenu(m);
 
-const react=document.createElement("button");
-react.textContent="😊 React";
-react.onclick=()=>reactionMenu(m);
+  const more=document.createElement("button");
+  more.textContent="⋮ Options";
+  more.onclick=()=>messageMenu(m);
 
-const more=document.createElement("button");
-more.textContent="⋮ Options";
-more.onclick=()=>messageMenu(m);
+  actions.append(react,more);
+  bubble.appendChild(actions);
 
-actions.append(react,more);
-bubble.appendChild(actions);
+  bubble.addEventListener("contextmenu",e=>{
+    e.preventDefault();
+    messageMenu(m);
+  });
 
-bubble.addEventListener("contextmenu",e=>{
-e.preventDefault();
-messageMenu(m);
-});
+  bubble.addEventListener("touchstart",()=>{
+    longPressTimer=setTimeout(()=>messageMenu(m),600);
+  },{passive:true});
 
-bubble.addEventListener("touchstart",()=>{
-longPressTimer=setTimeout(()=>messageMenu(m),600);
-},{passive:true});
-
-["touchend","touchmove","touchcancel"].forEach(ev=>{
-bubble.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
-});
-
+  ["touchend","touchmove","touchcancel"].forEach(ev=>{
+    bubble.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
+  });
 }
 
-$("messages").appendChild(bubble);
-
+if(oldNode) oldNode.replaceWith(bubble);
+else box.appendChild(bubble);
 }
 
-if(!$("messages").children.length){
-$("messages").innerHTML='<div class="notice">Say hello 👋</div>';
+// Keep messages in chronological order without rebuilding the chat.
+const sortedNodes=[...box.querySelectorAll("[data-message-id]")]
+  .sort((a,b)=>Number(a.dataset.createdAt)-Number(b.dataset.createdAt));
+sortedNodes.forEach(node=>box.appendChild(node));
+
+if(!box.querySelector("[data-message-id]")){
+  box.innerHTML='<div class="notice">Say hello 👋</div>';
+}else{
+  box.querySelector(".notice")?.remove();
 }
 
-$("messages").scrollTop=$("messages").scrollHeight;
+if(firstLoad || wasAtBottom){
+  box.scrollTop=box.scrollHeight;
+}
+
+box.dataset.loaded="true";
 
 }catch(error){
-
-showError(error);
-
+  showError(error);
 }
 
 },error=>{
 
 $("messages").innerHTML=
-'<div class="notice">Message error: '+escapeHTML(error.message)+'</div>';
+  '<div class="notice">Message error: '+escapeHTML(error.message)+'</div>';
 
 showError(error);
 
@@ -791,84 +862,29 @@ await ask("Reaction Error",error.message);
 }
 
 // Message options
-async function messageMenu(message){
+row._longPressed=false;
+row.onclick=()=>{
+if(row._longPressed){row._longPressed=false;return;}
+openChat(c,otherId,name);
+};
 
-const own=message.senderId===currentUser.uid;
+row.addEventListener("contextmenu",e=>{
+e.preventDefault();
+row._longPressed=true;
+chatListMenu(c);
+});
 
-const options=own
-?"1 Edit Message\n2 Delete for Me\n3 Delete for Everyone\n4 React"
-:"1 Delete for Me\n2 React";
+row.addEventListener("touchstart",()=>{
+row._longPressed=false;
+longPressTimer=setTimeout(()=>{
+row._longPressed=true;
+chatListMenu(c);
+},650);
+},{passive:true});
 
-const choice=await ask("Message Options",options,true);
-
-if(choice===null)return;
-
-const n=choice.trim();
-
-if(own&&n==="1"){
-
-const value=await ask(
-"Edit Message",
-"Enter updated message",
-true,
-message.text
-);
-
-if(value===null||!value.trim())return;
-
-try{
-
-await updateDoc(
-doc(db,"chats",activeChat.id,"messages",message.id),
-{
-text:value.trim(),
-edited:true,
-editedAt:serverTimestamp()
-}
-);
-
-}catch(error){
-
-await ask("Edit Error",error.message);
-
-}
-
-}else if((own&&n==="2")||(!own&&n==="1")){
-
-await deleteMessageForMe(message);
-
-}else if(own&&n==="3"){
-
-if(await confirmBox("Delete this message for both users?")){
-
-try{
-
-await updateDoc(
-doc(db,"chats",activeChat.id,"messages",message.id),
-{
-text:"This message was deleted",
-deletedForEveryone:true,
-deletedAt:serverTimestamp(),
-deletedBy:currentUser.uid
-}
-);
-
-}catch(error){
-
-await ask("Delete Error",error.message);
-
-}
-
-}
-
-}else if((own&&n==="4")||(!own&&n==="2")){
-
-await reactionMenu(message);
-
-}
-
-}
-
+["touchend","touchmove","touchcancel"].forEach(ev=>{
+row.addEventListener(ev,()=>clearTimeout(longPressTimer),{passive:true});
+});
 // Delete message for me
 async function deleteMessageForMe(message){
 
@@ -900,46 +916,28 @@ await ask("Delete Error",error.message);
 
 // Chat list menu
 async function chatListMenu(chat){
-
-const choice=await ask(
-"Chat Options",
-"1 Open Chat\n2 Hide / Unhide\n3 Delete Chat for Me",
-true
-);
-
-if(choice===null)return;
-
-const n=choice.trim();
-
-if(n==="1"){
-
+const hidden=settings.hiddenChatIds.includes(chat.id);
+const choice=await showActionSheet("Chat options",[
+{label:"💬  Open chat",value:"open"},
+{label:hidden?"🔓  Unhide chat":"🔒  Hide chat",value:"hide"},
+{label:"🗑️  Delete chat for me",value:"delete",danger:true}
+]);
+if(!choice)return;
+if(choice==="open"){
 const otherId=chat.members.find(x=>x!==currentUser.uid);
 const idx=chat.members.indexOf(otherId);
-
 openChat(chat,otherId,chat.memberNames?.[idx]||"Mitra User");
-
-}else if(n==="2"){
-
+}else if(choice==="hide"){
 if(settings.hiddenChatIds.includes(chat.id)){
-
-settings.hiddenChatIds=
-settings.hiddenChatIds.filter(x=>x!==chat.id);
-
+settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
 }else{
-
 settings.hiddenChatIds.push(chat.id);
-
 }
-
 await saveSettings();
 renderChats();
-
-}else if(n==="3"){
-
+}else if(choice==="delete"){
 await deleteChatForMe(chat);
-
 }
-
 }
 
 // Delete complete chat for me

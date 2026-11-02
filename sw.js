@@ -1,4 +1,4 @@
-const CACHE_NAME = "mitra-v1";
+const CACHE_NAME = "mitra-v2";
 
 const FILES = [
   "./",
