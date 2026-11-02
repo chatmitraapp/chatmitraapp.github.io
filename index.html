@@ -122,6 +122,18 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 .bubbleActions button {
     display: none !important;
 }
+
+/* First-launch notification permission prompt */
+#notificationWelcome{display:none;position:fixed;inset:0;z-index:30;background:#101426b8;align-items:center;justify-content:center;padding:22px}
+#notificationWelcome .welcomeCard{width:100%;max-width:370px;background:var(--card);color:var(--text);border-radius:24px;padding:26px 22px;text-align:center;box-shadow:0 18px 60px #0004}
+#notificationWelcome .welcomeIcon{width:68px;height:68px;margin:0 auto 16px;border-radius:22px;background:linear-gradient(135deg,#6657e8,#2b9df4);display:grid;place-items:center;color:white;font-size:32px}
+#notificationWelcome h2{font-size:21px;margin:0 0 10px}
+#notificationWelcome p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 20px}
+#notificationWelcome .welcomeButtons{display:grid;gap:10px}
+#notificationWelcome button{border:0;border-radius:13px;padding:14px;font-weight:700;font-size:14px;cursor:pointer}
+#notificationWelcome .allowBtn{background:var(--accent);color:white}
+#notificationWelcome .laterBtn{background:var(--bg);color:var(--text)}
+
 </style>
 </head>
 <body>
@@ -193,6 +205,19 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <div><b>☎</b>Calls</div>
 <div onclick="showSettings()"><b>●</b>Profile</div>
 </nav>
+
+
+<div id="notificationWelcome" role="dialog" aria-modal="true" aria-labelledby="notificationWelcomeTitle">
+  <div class="welcomeCard">
+    <div class="welcomeIcon">🔔</div>
+    <h2 id="notificationWelcomeTitle">Stay connected with Mitra</h2>
+    <p id="notificationWelcomeText">Allow notifications to get instant alerts for new messages, even when Mitra is closed.</p>
+    <div class="welcomeButtons">
+      <button class="allowBtn" id="notificationAllowButton" type="button">Allow Notifications</button>
+      <button class="laterBtn" id="notificationLaterButton" type="button">Not now</button>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="overlay">
 <div class="dialog">
@@ -295,6 +320,43 @@ window.restoreMitraNotificationStatus = async function(){
     statusEl.textContent = "Notifications: Status could not be verified";
   }
 };
+
+
+// Show the notification invitation once after the user's first successful login.
+// The browser's real permission prompt is opened only after the user taps Allow.
+function showMitraFirstLaunchNotificationPrompt(){
+  if (!currentUser) return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") return;
+  if (localStorage.getItem("mitraNotificationPromptSeen") === "yes") return;
+
+  const prompt = $("notificationWelcome");
+  const text = $("notificationWelcomeText");
+  const allow = $("notificationAllowButton");
+  if (!prompt || !allow) return;
+
+  if (Notification.permission === "denied") {
+    text.textContent = "Notifications are currently blocked for Mitra. Turn them on from Android Settings > Apps > Mitra > Notifications, then reopen Mitra.";
+    allow.textContent = "I understand";
+    allow.onclick = () => {
+      localStorage.setItem("mitraNotificationPromptSeen", "yes");
+      prompt.style.display = "none";
+    };
+  } else {
+    allow.onclick = async () => {
+      prompt.style.display = "none";
+      localStorage.setItem("mitraNotificationPromptSeen", "yes");
+      await window.enableMitraNotifications();
+    };
+  }
+
+  $("notificationLaterButton").onclick = () => {
+    localStorage.setItem("mitraNotificationPromptSeen", "yes");
+    prompt.style.display = "none";
+  };
+
+  prompt.style.display = "flex";
+}
 
 window.enableMitraNotifications = async function(){
   try{
@@ -476,6 +538,7 @@ $("errorInfo").textContent="";
     const profileSnap=await getDoc(doc(db,"users",user.uid));
     if(!profileSnap.exists()){status("Profile not found.");return;}
     currentProfile=profileSnap.data();
+    setTimeout(showMitraFirstLaunchNotificationPrompt, 1200);
     $("profileName").textContent=currentProfile.name||"Mitra User";
     $("profileEmail").textContent=currentProfile.email||user.email;
     $("profileMobile").textContent=currentProfile.mobile||"";
