@@ -1,12 +1,15 @@
 
 /* Mitra Service Worker: offline cache + Firebase Cloud Messaging */
 
-const CACHE_NAME = "mitra-v3";
+const CACHE_NAME = "mitra-v4";
+
 const FILES = [
   "./",
   "./index.html",
   "./login.html",
-  "./manifest.json"
+  "./manifest.json",
+  "./mitra-icon-192.png?v=2",
+  "./mitra-icon-512.png?v=2"
 ];
 
 // Firebase SDK
@@ -45,8 +48,8 @@ messaging.onBackgroundMessage(payload => {
       payload.notification?.body ||
       "You have a new message",
 
-    icon: "./mitra-icon-192.png",
-    badge: "./mitra-icon-192.png",
+    icon: "./mitra-icon-192.png?v=2",
+    badge: "./mitra-icon-192.png?v=2",
 
     data: {
       url: data.url || "./"
