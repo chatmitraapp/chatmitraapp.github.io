@@ -988,7 +988,7 @@ window.sendMessage=async()=>{
   }
 };
 
-async function chooseMitraEmoji(){
+async function chooseMitraEmoji(keepOpen=false,onSelect=null){
   const groups = [
     ["Smileys & emotions", "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 🙂‍↕️ 🙂‍↔️ 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😶‍🌫️ 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🫡 🤫 🫠 🤥 😶 😐 😑 😬 🫨 🥱 😴 🤤 😪 😮‍💨 😵 😵‍💫 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 💀 ☠️ 👻 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾"],
     ["Hands & people", "👋 🤚 🖐️ ✋ 🖖 🫱 🫲 🫳 🫴 🫷 🫸 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 🫵 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦 👶 🧒 👦 👧 🧑 👨 👩 🧔 🧔‍♀️ 🧔‍♂️ 👱 👱‍♀️ 👱‍♂️ 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 🥷 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🫃 🫄 🤱 👩‍🍼 👨‍🍼 🧑‍🍼 🎅 🤶 🧑‍🎄 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 💆 💇 🚶 🧍 🧎 🏃 💃 🕺 🕴️ 👯 🧖 🧗 🏇 🏂 🏄 🚣 🏊 ⛹️ 🏋️ 🚴 🚵 🤸 🤼 🤽 🤾 🤹 🧘 🛀 🛌"],
@@ -1017,6 +1017,17 @@ async function chooseMitraEmoji(){
     }
     picker.innerHTML="";
     picker.style.display="block";
+    const pickerTop=document.createElement("div");
+    pickerTop.style.cssText="display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);padding:4px 0 10px;z-index:2";
+    const pickerLabel=document.createElement("b");
+    pickerLabel.textContent="Choose an emoji";
+    const closeButton=document.createElement("button");
+    closeButton.type="button";
+    closeButton.textContent="✕";
+    closeButton.setAttribute("aria-label","Close emoji picker");
+    closeButton.style.cssText="border:0;border-radius:9px;background:var(--bg);color:var(--text);font-size:18px;padding:7px 11px;cursor:pointer";
+    pickerTop.append(pickerLabel,closeButton);
+    picker.appendChild(pickerTop);
     const finish=value=>{
       picker.style.display="none";
       picker.innerHTML="";
@@ -1024,6 +1035,7 @@ async function chooseMitraEmoji(){
       overlay.style.display="none";
       resolve(value);
     };
+    closeButton.onclick=()=>finish(null);
     groups.forEach(([label,items])=>{
       const heading=document.createElement("div");
       heading.textContent=label;
@@ -1037,30 +1049,38 @@ async function chooseMitraEmoji(){
         button.textContent=emoji;
         button.title=emoji;
         button.style.cssText="border:0;border-radius:8px;background:var(--bg);font-size:23px;min-height:39px;cursor:pointer";
-        button.onclick=()=>finish(emoji);
+        button.onclick=()=>{
+          if(keepOpen){
+            if(typeof onSelect==="function")onSelect(emoji);
+            button.style.transform="scale(.88)";
+            setTimeout(()=>button.style.transform="",120);
+          }else{
+            finish(emoji);
+          }
+        };
         grid.appendChild(button);
       });
       picker.appendChild(grid);
     });
     const cancel=document.createElement("button");
     cancel.type="button";
-    cancel.textContent="Cancel";
+    cancel.textContent="Close emoji window";
     cancel.style.cssText="width:100%;margin-top:12px;padding:11px;border:0;border-radius:10px;background:var(--bg);color:var(--text)";
     cancel.onclick=()=>finish(null);
     picker.appendChild(cancel);
     overlay.style.display="flex";
   });
 }
-window.openComposerEmojiPicker=async function(){
-  const emoji=await chooseMitraEmoji();
-  if(!emoji)return;
+window.openComposerEmojiPicker=function(){
   const input=$("messageInput");
-  const start=input.selectionStart ?? input.value.length;
-  const end=input.selectionEnd ?? input.value.length;
-  input.value=input.value.slice(0,start)+emoji+input.value.slice(end);
-  input.focus();
-  const cursor=start+emoji.length;
-  input.setSelectionRange(cursor,cursor);
+  chooseMitraEmoji(true,emoji=>{
+    const start=input.selectionStart ?? input.value.length;
+    const end=input.selectionEnd ?? input.value.length;
+    input.value=input.value.slice(0,start)+emoji+input.value.slice(end);
+    input.focus();
+    const cursor=start+emoji.length;
+    input.setSelectionRange(cursor,cursor);
+  });
 }
 async function pickMessageReaction(message){
   if(!activeChat || !currentUser)return;
