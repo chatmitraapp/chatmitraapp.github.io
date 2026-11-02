@@ -62,6 +62,19 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 #settingsPanel{display:none;padding:18px 18px 90px}
 .settingRow{background:var(--card);padding:15px;border-bottom:1px solid var(--line);border-radius:12px;margin:8px 0;cursor:pointer}
 .errorText{color:var(--danger);font-size:12px;padding:5px 18px;overflow-wrap:anywhere}
+/* Remove React and Options buttons below messages */
+.bubbleActions,
+.bubble-actions,
+.messageActions,
+.message-actions {
+    display: none !important;
+}
+
+/* Hide old React and Options buttons */
+.bubble button,
+.bubbleActions button {
+    display: none !important;
+}
 </style>
 </head>
 <body>
