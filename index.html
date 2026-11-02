@@ -67,9 +67,17 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 
 .bubble.deleted{font-style:italic;opacity:.7}
 .reactionLine{font-size:17px;margin-top:5px}
-.composer{position:fixed;bottom:0;left:0;right:0;padding:10px;display:flex;gap:8px;background:var(--card);z-index:3}
-.composer input{flex:1;min-width:0;border:0;border-radius:20px;background:var(--bg);color:var(--text);padding:13px}
+.composer{position:fixed;bottom:0;left:0;right:0;padding:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--card);z-index:3}
+.replyPreview{flex:0 0 100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-left:4px solid var(--accent);border-radius:9px;background:var(--bg);min-width:0}
+.replyPreviewText{display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden;font-size:12px}
+.replyPreviewText b{color:var(--accent)}
+.replyPreviewText span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.replyCancel{border:0;background:transparent;color:var(--text);font-size:23px;padding:0 5px}
+.replyQuote{border-left:3px solid currentColor;background:#00000012;border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:12px;opacity:.9}
+.replyQuote b{display:block;margin-bottom:2px}
+.composerEmoji{flex:0 0 44px;border:0;border-radius:14px;background:var(--bg);color:var(--text);font-size:23px;cursor:pointer;padding:8px}.composer input{flex:1;min-width:0;border:0;border-radius:20px;background:var(--bg);color:var(--text);padding:13px}
 .composer button,.primary{border:0;background:var(--accent);color:white;border-radius:14px;padding:12px 17px}
+.composer .composerEmoji{flex:0 0 44px;border:0;border-radius:14px;background:var(--bg);color:var(--text);font-size:23px;cursor:pointer;padding:8px}
 .notice{padding:18px;color:var(--muted);text-align:center}
 #status{padding:8px 18px;color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .overlay{display:none;position:fixed;inset:0;background:#0008;z-index:10;align-items:center;justify-content:center;padding:18px}
@@ -153,9 +161,14 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <button onclick="chatOptions()">⋮</button>
 </div>
 <div id="messages"><div class="notice">Loading messages...</div></div>
-<div class="composer">
-<input id="messageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()">
-<button onclick="sendMessage()">➤</button>
+<div class="composer" id="composer">
+<div id="replyPreview" class="replyPreview" style="display:none">
+  <div class="replyPreviewText"><b id="replyPreviewName">Replying</b><span id="replyPreviewMessage"></span></div>
+  <button type="button" class="replyCancel" onclick="cancelReply()" aria-label="Cancel reply">×</button>
+</div>
+<button type="button" class="composerEmoji" onclick="openComposerEmojiPicker()" title="Emoji">☺</button>
+<input id="messageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
+<button type="button" onclick="sendMessage()">➤</button>
 </div>
 </div>
 
@@ -198,6 +211,8 @@ let showingHidden=false;
 let dialogResolve=null;
     let presenceListeners = new Map();
 let presenceCache = {};
+let reactionListeners = new Map();
+let currentReply = null;
 
 function attachLongPress(element,callback){
   let timer=null,startX=0,startY=0,fired=false;
@@ -621,6 +636,8 @@ updateChatPresence(otherId);
     messagesUnsubscribe();
     messagesUnsubscribe = null;
   }
+  reactionListeners.forEach(unsub => unsub());
+  reactionListeners.clear();
 
   const box = $("messages");
   box.innerHTML = '<div class="notice">Loading all messages...</div>';
@@ -756,6 +773,7 @@ updateChatPresence(otherId);
           const contentHTML = deleted
             ? "This message was deleted"
             : escapeHTML(m.text || "");
+          const replyHTML = m.replyTo ? `<div class="replyQuote"><b>${escapeHTML(m.replyTo.senderName || "Message")}</b>${escapeHTML(m.replyTo.text || "Message")}</div>` : "";
 
           let receiptHTML = "";
           if (m.senderId === currentUser.uid) {
@@ -769,21 +787,31 @@ updateChatPresence(otherId);
           }
 
           bubble.innerHTML = `
+            ${replyHTML}
             <div>${contentHTML}</div>
             <small>
               ${formatMessageTime(m.createdAt)}
               ${m.edited ? " · edited" : ""}
               ${receiptHTML}
             </small>
-            ${
-              item.reactionHTML
-                ? `<div class="reactionLine">${item.reactionHTML}</div>`
-                : ""
-            }
+            <div class="reactionLine">${item.reactionHTML || ""}</div>
           `;
 
           if (!deleted) {
             attachLongPress(bubble, () => messageMenu(m));
+            let swipeStartX = 0, swipeStartY = 0;
+            bubble.addEventListener("pointerdown", event => {
+              swipeStartX = event.clientX; swipeStartY = event.clientY;
+            }, {passive:true});
+            bubble.addEventListener("pointerup", event => {
+              const dx = event.clientX - swipeStartX;
+              const dy = event.clientY - swipeStartY;
+              if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+                event.preventDefault();
+                event.stopPropagation();
+                setReplyTarget(m);
+              }
+            });
           }
 
           const messageRow = document.createElement("div");
@@ -813,6 +841,23 @@ updateChatPresence(otherId);
 
         // Replace the complete message list in one operation.
         box.replaceChildren(fragment);
+
+        reactionListeners.forEach(unsub => unsub());
+        reactionListeners.clear();
+        validMessages.forEach(item => {
+          const m = item.message;
+          const reactionRef = collection(db, "chats", currentChatId, "messages", m.id, "reactions");
+          const unsub = onSnapshot(reactionRef, reactionSnapshot => {
+            const counts = {};
+            reactionSnapshot.forEach(reactionDoc => {
+              const emoji = reactionDoc.data().emoji;
+              if (emoji) counts[emoji] = (counts[emoji] || 0) + 1;
+            });
+            const line = box.querySelector('[data-message-id="' + m.id + '"] .reactionLine');
+            if (line) line.textContent = Object.entries(counts).map(([emoji,count]) => emoji + " " + count).join(" ");
+          }, error => console.warn("Mitra reaction listener:", error));
+          reactionListeners.set(m.id, unsub);
+        });
 
         // Update receipts in the background; never wait for these writes
         // before rendering messages.
@@ -882,6 +927,8 @@ updateChatPresence(otherId);
 window.backHome=()=>{
   if(messagesUnsubscribe)messagesUnsubscribe();
   messagesUnsubscribe=null;
+  reactionListeners.forEach(unsub => unsub());
+  reactionListeners.clear();
   activeChat=null;
   $("chatScreen").style.display="none";
   $("settingsPanel").style.display="none";
@@ -891,6 +938,24 @@ window.backHome=()=>{
   renderChats();
 };
 
+// Reply preview and swipe-to-reply
+function setReplyTarget(message){
+  if(!message || message.deletedForEveryone)return;
+  const senderName = message.senderId === currentUser?.uid
+    ? (currentProfile?.name || "You")
+    : (activeChat?.memberNames?.[activeChat.members?.indexOf(message.senderId)] || "Mitra User");
+  currentReply = {...message, senderName};
+  $("replyPreviewName").textContent = "Replying to " + senderName;
+  $("replyPreviewMessage").textContent = message.text || "Message";
+  $("replyPreview").style.display = "flex";
+  $("messageInput").focus();
+}
+window.cancelReply=()=>{
+  currentReply=null;
+  const preview=$("replyPreview");
+  if(preview)preview.style.display="none";
+};
+
 // Send message
 window.sendMessage=async()=>{
   const input=$("messageInput");
@@ -898,12 +963,20 @@ window.sendMessage=async()=>{
   if(!text||!activeChat||!currentUser)return;
   input.value="";
   try{
-    await addDoc(collection(db,"chats",activeChat.id,"messages"),{
+    const messageData = {
       senderId:currentUser.uid,
       text,
       createdAt:serverTimestamp(),
       type:"text"
-    });
+    };
+    if (currentReply) messageData.replyTo = {
+      messageId: currentReply.id,
+      text: currentReply.text || "This message",
+      senderId: currentReply.senderId,
+      senderName: currentReply.senderName || (currentReply.senderId === currentUser.uid ? (currentProfile?.name || "You") : (activeChat.memberNames?.[activeChat.members?.indexOf(currentReply.senderId)] || "Mitra User"))
+    };
+    await addDoc(collection(db,"chats",activeChat.id,"messages"),messageData);
+    cancelReply();
     await updateDoc(doc(db,"chats",activeChat.id),{
       lastMessage:text,
       lastMessageAt:serverTimestamp()
@@ -915,7 +988,7 @@ window.sendMessage=async()=>{
   }
 };
 
-async function pickMessageReaction(message){
+async function chooseMitraEmoji(){
   const groups = [
     ["Smileys & emotions", "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 🙂‍↕️ 🙂‍↔️ 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😶‍🌫️ 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🫡 🤫 🫠 🤥 😶 😐 😑 😬 🫨 🥱 😴 🤤 😪 😮‍💨 😵 😵‍💫 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 💀 ☠️ 👻 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾"],
     ["Hands & people", "👋 🤚 🖐️ ✋ 🖖 🫱 🫲 🫳 🫴 🫷 🫸 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 🫵 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦 👶 🧒 👦 👧 🧑 👨 👩 🧔 🧔‍♀️ 🧔‍♂️ 👱 👱‍♀️ 👱‍♂️ 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 🥷 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🫃 🫄 🤱 👩‍🍼 👨‍🍼 🧑‍🍼 🎅 🤶 🧑‍🎄 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 💆 💇 🚶 🧍 🧎 🏃 💃 🕺 🕴️ 👯 🧖 🧗 🏇 🏂 🏄 🚣 🏊 ⛹️ 🏋️ 🚴 🚵 🤸 🤼 🤽 🤾 🤹 🧘 🛀 🛌"],
@@ -931,11 +1004,10 @@ async function pickMessageReaction(message){
     const overlay=$("overlay");
     const oldActions=$("dialogActions");
     const dialog=$("dialogTitle").parentNode;
-    $("dialogTitle").textContent="Choose a reaction";
+    $("dialogTitle").textContent="Choose an emoji";
     $("dialogText").textContent="Select an emoji";
     $("dialogInput").style.display="none";
     oldActions.style.display="none";
-
     let picker=document.getElementById("emojiPicker");
     if(!picker){
       picker=document.createElement("div");
@@ -945,7 +1017,6 @@ async function pickMessageReaction(message){
     }
     picker.innerHTML="";
     picker.style.display="block";
-
     const finish=value=>{
       picker.style.display="none";
       picker.innerHTML="";
@@ -953,13 +1024,11 @@ async function pickMessageReaction(message){
       overlay.style.display="none";
       resolve(value);
     };
-
     groups.forEach(([label,items])=>{
       const heading=document.createElement("div");
       heading.textContent=label;
       heading.style.cssText="font-weight:700;font-size:13px;margin:14px 0 7px";
       picker.appendChild(heading);
-
       const grid=document.createElement("div");
       grid.style.cssText="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px";
       items.split(/\s+/).forEach(emoji=>{
@@ -973,7 +1042,6 @@ async function pickMessageReaction(message){
       });
       picker.appendChild(grid);
     });
-
     const cancel=document.createElement("button");
     cancel.type="button";
     cancel.textContent="Cancel";
@@ -981,37 +1049,43 @@ async function pickMessageReaction(message){
     cancel.onclick=()=>finish(null);
     picker.appendChild(cancel);
     overlay.style.display="flex";
-  }).then(async choice=>{
-    if(!choice)return;
-    try{
-      const reactionRef=doc(
-        db,"chats",activeChat.id,"messages",message.id,
-        "reactions",currentUser.uid
-      );
-      const existing=await getDoc(reactionRef);
-
-      if(existing.exists() && existing.data().emoji===choice){
-        await deleteDoc(reactionRef);
-      }else{
-        await setDoc(reactionRef,{
-          userId:currentUser.uid,
-          emoji:choice,
-          updatedAt:serverTimestamp()
-        });
-      }
-    }catch(error){
-      showError(error);
-      await ask("Reaction Error",error.message);
-    }
   });
 }
-
+window.openComposerEmojiPicker=async function(){
+  const emoji=await chooseMitraEmoji();
+  if(!emoji)return;
+  const input=$("messageInput");
+  const start=input.selectionStart ?? input.value.length;
+  const end=input.selectionEnd ?? input.value.length;
+  input.value=input.value.slice(0,start)+emoji+input.value.slice(end);
+  input.focus();
+  const cursor=start+emoji.length;
+  input.setSelectionRange(cursor,cursor);
+}
+async function pickMessageReaction(message){
+  if(!activeChat || !currentUser)return;
+  const emoji=await chooseMitraEmoji();
+  if(!emoji)return;
+  try{
+    const reactionRef=doc(db,"chats",activeChat.id,"messages",message.id,"reactions",currentUser.uid);
+    const existing=await getDoc(reactionRef);
+    if(existing.exists() && existing.data().emoji===emoji){
+      await deleteDoc(reactionRef);
+    }else{
+      await setDoc(reactionRef,{userId:currentUser.uid,emoji,updatedAt:serverTimestamp()});
+    }
+  }catch(error){
+    showError(error);
+    await ask("Reaction Error",error.message);
+  }
+}
 
 // Message actions: open only with long press
 async function messageMenu(message){
   if(!activeChat||message.deletedForEveryone)return;
   const mine=message.senderId===currentUser.uid;
   const actions=[
+    {label:"↩️  Reply",value:"reply"},
     {label:"😀  React",value:"react"},
     ...(mine?[{label:"ℹ️  Info",value:"info"}]:[]),
     ...(mine&&message.type==="text"?[{label:"✏️  Edit message",value:"edit"}]:[]),
@@ -1023,6 +1097,7 @@ async function messageMenu(message){
 
   const choice=await showActionSheet("Message options",actions);
   if(!choice)return;
+  if(choice==="reply")return setReplyTarget(message);
   if(choice==="react")return pickMessageReaction(message);
 
   try{
