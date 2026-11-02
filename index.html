@@ -159,6 +159,8 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <div class="settingRow" onclick="changePin()">🔐 Change Secret Code</div>
 <div class="settingRow" onclick="resetPin()">♻️ Reset Secret Code</div>
 <div class="settingRow" onclick="showNormalChats()">💬 Show Normal Chats</div>
+<div class="settingRow" onclick="enableMitraNotifications()">🔔 Enable Notifications</div>
+<div class="settingRow" id="notificationStatus" style="cursor:default">Notifications: Not enabled</div>
 <div class="settingRow" onclick="logout()" style="color:var(--danger)">↪ Logout</div>
 <button class="primary" onclick="closeSettings()">Back to Chats</button>
 </div>
@@ -206,6 +208,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 
 <script type="module">
 import {auth,db,rtdb} from './firebase.js';
+import {getMessaging,isSupported,onMessage,getToken} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-messaging.js";
 import {onAuthStateChanged,signOut,updatePassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 import { startPresence, stopPresence } from "./presence.js";
@@ -226,6 +229,47 @@ let dialogResolve=null;
 let presenceCache = {};
 let reactionListeners = new Map();
 let currentReply = null;
+
+// Firebase Cloud Messaging Web Push public VAPID key.
+const MITRA_VAPID_KEY = "BDFfkCvDB_glFWau6yJtRyHwU8l_4Pmoed6pgLuIOR44-VJusbCYhkg9NOZLIyZzlNmvZdwsGSTd5Y8u3Y-bznQ";
+let mitraMessaging = null;
+let foregroundMessageUnsubscribe = null;
+
+async function setupMitraForegroundMessaging(){
+  try{
+    if(!(await isSupported())) return;
+    mitraMessaging = getMessaging();
+    if(foregroundMessageUnsubscribe) foregroundMessageUnsubscribe();
+    foregroundMessageUnsubscribe = onMessage(mitraMessaging, payload=>{
+      const title = payload.notification?.title || payload.data?.title || "Mitra";
+      const body = payload.notification?.body || payload.data?.body || "You have a new message";
+      ask(title,body);
+    });
+  }catch(error){ console.warn("Mitra foreground notifications unavailable:",error); }
+}
+
+window.enableMitraNotifications = async function(){
+  try{
+    if(!currentUser) throw new Error("Please login first.");
+    if(!(await isSupported())) throw new Error("Push notifications are not supported in this browser/app version.");
+    const permission = await Notification.requestPermission();
+    if(permission !== "granted") throw new Error("Notification permission was not granted. Please allow notifications in Android app settings.");
+    if(!mitraMessaging) mitraMessaging = getMessaging();
+    const registration = await navigator.serviceWorker.ready;
+    const token = await getToken(mitraMessaging,{vapidKey:MITRA_VAPID_KEY,serviceWorkerRegistration:registration});
+    if(!token) throw new Error("FCM token could not be created. Please try again.");
+    await setDoc(doc(db,"users",currentUser.uid,"devices","web"),{
+      token, platform:"web", app:"mitra", updatedAt:serverTimestamp()
+    },{merge:true});
+    const statusEl=$("notificationStatus");
+    if(statusEl) statusEl.textContent="Notifications: Enabled on this device";
+    await setupMitraForegroundMessaging();
+    await ask("Mitra Notifications","Notifications enabled successfully on this device.");
+  }catch(error){
+    console.error("Mitra notification setup failed:",error);
+    await ask("Notification Setup",error.message || String(error));
+  }
+};
 
 function attachLongPress(element,callback){
   let timer=null,startX=0,startY=0,fired=false;
@@ -376,6 +420,7 @@ onAuthStateChanged(auth,async user=>{
       return;
     }
     currentUser=user;
+setupMitraForegroundMessaging();
 startPresence(user.uid);
 status("Loading your profile...");
 $("errorInfo").textContent="";
