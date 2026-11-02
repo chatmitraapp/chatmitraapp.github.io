@@ -23,6 +23,7 @@ export function startPresence(uid) {
 
   connectionListener = onValue(connectedRef, async (snapshot) => {
     if (snapshot.val() !== true) return;
+    console.log("Mitra Presence Connected:", uid);
 
     try {
       await onDisconnect(statusRef).set({
