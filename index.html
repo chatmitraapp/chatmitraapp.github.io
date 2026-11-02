@@ -396,6 +396,21 @@ function formatLastSeen(timestamp) {
   });
 }
 
+function formatMessageTime(timestamp) {
+  if (!timestamp) return "Time unavailable";
+
+  const date = typeof timestamp.toDate === "function"
+    ? timestamp.toDate()
+    : new Date(timestamp);
+
+  if (isNaN(date.getTime())) return "Time unavailable";
+
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 function updateChatPresence(uid) {
   const el = $("chatPresence");
 
@@ -624,6 +639,24 @@ updateChatPresence(otherId);
           };
         });
 
+        // Mark incoming messages as seen when this chat is open.
+        const unseenIncoming = snapshot.docs.filter(messageDoc => {
+          const data = messageDoc.data();
+          return data.senderId !== currentUser.uid && !data.seenAt;
+        });
+
+        if (unseenIncoming.length) {
+          await Promise.all(unseenIncoming.map(messageDoc =>
+            updateDoc(
+              doc(db, "chats", currentChatId, "messages", messageDoc.id),
+              {
+                seenAt: serverTimestamp(),
+                seenByUid: currentUser.uid
+              }
+            )
+          ));
+        }
+
         // Load all messages together.
         const results = await Promise.all(messageTasks);
 
@@ -672,11 +705,17 @@ updateChatPresence(otherId);
             ? "This message was deleted"
             : escapeHTML(m.text || "");
 
+          const messageTime = formatMessageTime(m.sentAt || m.createdAt);
+          const receiptText = m.senderId === currentUser.uid
+            ? (m.seenAt
+                ? ` · ✓✓ Seen ${formatMessageTime(m.seenAt)}`
+                : " · ✓ Sent")
+            : "";
+
           bubble.innerHTML = `
             <div>${contentHTML}</div>
             <small>
-              ${m.senderId === currentUser.uid ? "You" : "Mitra User"}
-              ${m.edited ? "· edited" : ""}
+              ${messageTime}${receiptText}${m.edited ? " · edited" : ""}
             </small>
             ${
               item.reactionHTML
@@ -757,6 +796,7 @@ window.sendMessage=async()=>{
       senderId:currentUser.uid,
       text,
       createdAt:serverTimestamp(),
+      sentAt:serverTimestamp(),
       type:"text"
     });
     await updateDoc(doc(db,"chats",activeChat.id),{
@@ -843,12 +883,15 @@ async function messageMenu(message){
 
       const forwarded={...message};
       delete forwarded.id;
+      delete forwarded.seenAt;
+      delete forwarded.seenByUid;
 
       await addDoc(collection(db,"chats",chatId,"messages"),{
         ...forwarded,
         senderId:currentUser.uid,
         forwarded:true,
-        createdAt:serverTimestamp()
+        createdAt:serverTimestamp(),
+        sentAt:serverTimestamp()
       });
 
       await ask("Forwarded","Message forwarded successfully.");
