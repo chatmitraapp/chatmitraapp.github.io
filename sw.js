@@ -1,7 +1,7 @@
 
 /* Mitra Service Worker: offline cache + Firebase Cloud Messaging */
 
-const CACHE_NAME = "mitra-v4";
+const CACHE_NAME = "mitra-v5";
 
 const FILES = [
   "./",
@@ -56,7 +56,8 @@ messaging.onBackgroundMessage(payload => {
     },
 
     tag: data.chatId || "mitra-message",
-    renotify: true
+    renotify: false,
+    silent: true
   };
 
   return self.registration.showNotification(title, options);
