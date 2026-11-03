@@ -1999,6 +1999,14 @@ window.chatOptions=async()=>{
 
       await Promise.all(tasks);
 
+      // Clear the chat-list preview for this account as well.
+      // Keep the last-message metadata so a later incoming message can
+      // become the new preview normally.
+      settings.chatResetAt=settings.chatResetAt||{};
+      settings.chatResetAt[chat.id]=Date.now();
+      localStorage.setItem(chatReadStorageKey(chat.id),String(Date.now()));
+      await saveSettings();
+
       if(messagesUnsubscribe){
         messagesUnsubscribe();
         messagesUnsubscribe=null;
