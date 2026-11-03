@@ -617,6 +617,13 @@ function listenChats(){
 
       if(latestChat){
         activeChat=latestChat;
+        // Messages arriving while this conversation is already open are read immediately.
+        if(latestChat.lastMessageSenderId && latestChat.lastMessageSenderId!==currentUser.uid){
+          const incomingTime=getChatLastMessageTime(latestChat);
+          if(incomingTime){
+            localStorage.setItem(chatReadStorageKey(latestChat.id),String(incomingTime));
+          }
+        }
 
         const otherId=latestChat.members?.find(
           id=>id!==currentUser.uid
