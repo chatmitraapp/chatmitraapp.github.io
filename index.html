@@ -167,6 +167,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <div class="settingRow" id="usernameSetting" onclick="setUsername()">👤 Create Username</div>
 <div class="settingRow" onclick="changeProfile()">✏️ Edit Profile</div>
 <div class="settingRow" onclick="changeAccountPassword()">🔑 Change Password</div>
+<div class="settingRow" onclick="deleteMitraAccount()" style="color:var(--danger)">🗑️ Delete Account Permanently</div>
 <div class="settingRow" onclick="toggleTheme()">◐ Change Theme</div>
 <div class="settingRow" onclick="changePin()">🔐 Change Secret Code</div>
 <div class="settingRow" onclick="resetPin()">♻️ Reset Secret Code</div>
@@ -232,12 +233,13 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <script type="module">
 import {auth,db,rtdb} from './firebase.js';
 import {getMessaging,isSupported,onMessage,getToken} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-messaging.js";
-import {onAuthStateChanged,signOut,updatePassword,EmailAuthProvider,reauthenticateWithCredential} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import {onAuthStateChanged,signOut,updatePassword,deleteUser,EmailAuthProvider,reauthenticateWithCredential} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 import { startPresence, stopPresence } from "./presence.js";
     import {
   ref,
-  onValue
+  onValue,
+  remove
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
     
 let currentUser=null;
@@ -2259,6 +2261,92 @@ window.changeProfile=async()=>{
 
   }catch(error){
     await ask("Profile Error",error.message);
+  }
+};
+
+// Permanently delete the signed-in Mitra account.
+window.deleteMitraAccount=async()=>{
+  if(!currentUser){
+    await ask("Account Error","Please log in again and try.");
+    return;
+  }
+
+  const confirmed=await confirmBox(
+    "Permanently delete your Mitra account? Your profile, username, settings and account access will be deleted. This cannot be undone. Messages already delivered to other users may remain in their chat history."
+  );
+  if(!confirmed)return;
+
+  const email=currentUser.email;
+  if(!email){
+    await ask("Cannot Delete","This account has no email/password credential. Please contact support.");
+    return;
+  }
+
+  const password=await ask("Confirm Your Password","Enter your current password to permanently delete this account.",true);
+  if(password===null)return;
+  if(!password){
+    await ask("Password Required","Enter your current password.");
+    return;
+  }
+
+  try{
+    const credential=EmailAuthProvider.credential(email,password);
+    await reauthenticateWithCredential(currentUser,credential);
+
+    // Remove this user from each shared chat. Existing messages remain
+    // available to the other participant as conversation history.
+    const chatsSnapshot=await getDocs(query(
+      collection(db,"chats"),
+      where("members","array-contains",currentUser.uid)
+    ));
+
+    for(const chatDoc of chatsSnapshot.docs){
+      const chatData=chatDoc.data();
+      const members=Array.isArray(chatData.members)?chatData.members:[];
+      const names=Array.isArray(chatData.memberNames)?chatData.memberNames:[];
+      const keepIndexes=members.map((id,index)=>({id,index}))
+        .filter(item=>item.id!==currentUser.uid);
+      if(keepIndexes.length){
+        await updateDoc(chatDoc.ref,{
+          members:keepIndexes.map(item=>item.id),
+          memberNames:keepIndexes.map(item=>names[item.index]||"Mitra User")
+        });
+      }else{
+        await deleteDoc(chatDoc.ref);
+      }
+    }
+
+    // Remove account-owned Firestore documents and registered device records.
+    const devicesSnapshot=await getDocs(collection(db,"users",currentUser.uid,"devices"));
+    for(const deviceDoc of devicesSnapshot.docs) await deleteDoc(deviceDoc.ref);
+
+    await deleteDoc(doc(db,"userSettings",currentUser.uid)).catch(error=>{
+      if(error.code!=="not-found")throw error;
+    });
+    await deleteDoc(doc(db,"publicUsers",currentUser.uid));
+    await deleteDoc(doc(db,"users",currentUser.uid));
+
+    // Remove realtime presence, then delete the Firebase Authentication account.
+    await remove(ref(rtdb,"status/"+currentUser.uid));
+    if(chatsUnsubscribe)chatsUnsubscribe();
+    if(messagesUnsubscribe)messagesUnsubscribe();
+    presenceListeners.forEach(unsubscribe=>unsubscribe());
+    presenceListeners.clear();
+    await deleteUser(currentUser);
+
+    await signOut(auth).catch(()=>{});
+    location.href="login.html";
+  }catch(error){
+    console.error("Mitra account deletion failed:",error);
+    let message=error.message||"Please try again.";
+    if(error.code==="auth/wrong-password"||error.code==="auth/invalid-credential"){
+      message="Incorrect password. Your account has not been deleted.";
+    }else if(error.code==="auth/requires-recent-login"){
+      message="For security, log out and log in again, then retry account deletion.";
+    }else if(error.code==="permission-denied"){
+      message="Firebase security rules blocked account cleanup. Your account was not fully deleted. Please contact support.";
+    }
+    await ask("Account Deletion Failed",message);
   }
 };
 
