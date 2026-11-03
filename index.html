@@ -269,10 +269,24 @@ async function setupMitraForegroundMessaging(){
     if(!(await isSupported())) return;
     mitraMessaging = getMessaging();
     if(foregroundMessageUnsubscribe) foregroundMessageUnsubscribe();
-    foregroundMessageUnsubscribe = onMessage(mitraMessaging, payload=>{
+    foregroundMessageUnsubscribe = onMessage(mitraMessaging, async payload=>{
       const title = payload.notification?.title || payload.data?.title || "Mitra";
       const body = payload.notification?.body || payload.data?.body || "You have a new message";
-      ask(title,body);
+      // Show a quiet notification in the notification shade, not an in-app popup.
+      try{
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(title,{
+          body,
+          icon:"./mitra-icon-192.png?v=2",
+          badge:"./mitra-icon-192.png?v=2",
+          silent:true,
+          tag:payload.data?.chatId || "mitra-message",
+          renotify:false,
+          data:{url:payload.data?.url || "./"}
+        });
+      }catch(notificationError){
+        console.warn("Could not show quiet foreground notification:",notificationError);
+      }
     });
   }catch(error){ console.warn("Mitra foreground notifications unavailable:",error); }
 }
