@@ -1511,11 +1511,16 @@ window.sendMessage=async()=>{
     await addDoc(collection(db,"chats",activeChat.id,"messages"),messageData);
     scrollMessagesToBottom("smooth");
     cancelReply();
-    await updateDoc(doc(db,"chats",activeChat.id),{
-      lastMessage:text,
-      lastMessageSenderId:currentUser.uid,
-      lastMessageAt:serverTimestamp()
-    });
+    // Keep the chat preview update compatible with the current Firestore rules.
+    // The message itself has already been saved successfully above.
+    try{
+      await updateDoc(doc(db,"chats",activeChat.id),{
+        lastMessage:text,
+        lastMessageAt:serverTimestamp()
+      });
+    }catch(chatUpdateError){
+      console.warn("Message saved, but chat preview update was blocked:",chatUpdateError);
+    }
 
     // Send a push notification through the Cloudflare Worker.
     // Push failures must not undo or report failure for a message already saved.
@@ -1863,7 +1868,6 @@ async function messageMenu(message){
       await setDoc(doc(db,"chats",chatId),{
         members,memberNames,
         lastMessage:message.text||message.fileName||"Forwarded media",
-        lastMessageSenderId:currentUser.uid,
         lastMessageAt:serverTimestamp()
       },{merge:true});
 
