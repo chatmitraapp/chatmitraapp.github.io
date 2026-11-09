@@ -981,6 +981,17 @@ function renderChats(){
     (a.lastMessageAt?.toMillis?.()||0)
   );
 
+  // Show only one conversation row per participant. If older duplicate
+  // chat documents exist, keep the most recently active one in the list.
+  const seenParticipants=new Set();
+  visible=visible.filter(chat=>{
+    const otherId=chat.members?.find(id=>id!==currentUser.uid);
+    if(!otherId) return true;
+    if(seenParticipants.has(otherId)) return false;
+    seenParticipants.add(otherId);
+    return true;
+  });
+
   $("listTitle").textContent=showingHidden?"Hidden Chats":"Recent Chats";
 
   if(!visible.length){
@@ -1195,13 +1206,18 @@ async function createChatWithIdentifier(value){
 
     // Reuse only a conversation that is still active for this account.
     // Deleted/hidden old conversations are never un-deleted by searching.
-    let chat=allChats.find(c=>
-      Array.isArray(c.members)
-      && c.members.length===2
-      && members.every(uid=>c.members.includes(uid))
-      && !settings.deletedChatIds.includes(c.id)
-      && !settings.hiddenChatIds.includes(c.id)
-    );
+    let chat=allChats
+      .filter(c=>
+        Array.isArray(c.members)
+        && c.members.length===2
+        && members.every(uid=>c.members.includes(uid))
+        && !settings.deletedChatIds.includes(c.id)
+        && !settings.hiddenChatIds.includes(c.id)
+      )
+      .sort((a,b)=>
+        (b.lastMessageAt?.toMillis?.()||0)-
+        (a.lastMessageAt?.toMillis?.()||0)
+      )[0]||null;
 
     if(!chat){
       const memberNames=members.map(uid=>
