@@ -1,15 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <defs>
- <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10c9f4"/><stop offset=".52" stop-color="#3157e8"/><stop offset="1" stop-color="#7839e9"/></linearGradient>
- <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".58" stop-color="#fff"/><stop offset=".76" stop-color="#ffb52e"/><stop offset="1" stop-color="#16c77a"/></linearGradient>
- <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>
+ <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#426ce9"/><stop offset=".52" stop-color="#293c9a"/><stop offset="1" stop-color="#101b54"/></linearGradient>
+ <linearGradient id="warm" x1=".15" y1="0" x2=".8" y2="1"><stop stop-color="#ffb13b"/><stop offset=".48" stop-color="#f044c8"/><stop offset="1" stop-color="#8c45f3"/></linearGradient>
+ <linearGradient id="cool" x1=".15" y1="0" x2=".85" y2="1"><stop stop-color="#21d5ef"/><stop offset=".55" stop-color="#19d7b9"/><stop offset="1" stop-color="#24dc82"/></linearGradient>
+ <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".98"/><stop offset="1" stop-color="#c9fff3" stop-opacity=".96"/></linearGradient>
+ <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff9b53"/><stop offset=".5" stop-color="#a04bdf"/><stop offset="1" stop-color="#21c7df"/></linearGradient>
+ <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
 </defs>
-<rect width="512" height="512" rx="116" fill="url(#bg)"/>
-<circle cx="260" cy="250" r="170" fill="#071d71" opacity=".24" filter="url(#shadow)"/>
-<path d="M256 105c-91 0-165 63-165 141 0 40 20 76 54 101l-20 58 73-28c18 7 37 10 58 10 91 0 165-63 165-141S347 105 256 105Z" fill="#123cb4" stroke="url(#ring)" stroke-width="22" stroke-linejoin="round"/>
-<g fill="#fff">
- <circle cx="190" cy="235" r="17"/><circle cx="256" cy="235" r="17"/><circle cx="322" cy="235" r="17"/>
- <circle cx="211" cy="320" r="24"/><circle cx="301" cy="320" r="24"/>
- <path d="M165 389c5-43 24-66 54-66 17 0 29 8 37 22 8-14 20-22 37-22 30 0 49 23 54 66H165Z"/>
-</g>
+<rect width="512" height="512" rx="112" fill="url(#tile)"/>
+<path d="M0 0h512v160c-112 4-173-41-215-111C230-5 116-2 0 40Z" fill="#fff" opacity=".055"/>
+<circle cx="250" cy="248" r="142" fill="#ff53bf" opacity=".16" filter="url(#soft)"/>
+<circle cx="235" cy="230" r="127" fill="url(#warm)"/>
+<circle cx="322" cy="304" r="126" fill="url(#cool)"/>
+<path d="M302 179c-58 0-105 44-105 99s47 99 105 99c16 0 31-3 45-10l35 17-12-43c23-18 37-43 37-71 0-50-47-91-105-91Z" fill="#fff" opacity=".14"/>
+<path d="M278 171c-62 0-112 48-112 107 0 28 12 54 32 73l-12 43 47-19c14 6 29 9 45 9 62 0 112-48 112-107S340 171 278 171Z" fill="url(#glass)"/>
+<circle cx="278" cy="278" r="78" fill="url(#lens)"/>
+<circle cx="278" cy="278" r="78" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3"/>
 </svg>
