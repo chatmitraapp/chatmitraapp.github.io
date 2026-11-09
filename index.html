@@ -247,7 +247,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 import {auth,db,rtdb} from './firebase.js';
 import {getMessaging,isSupported,onMessage,getToken} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-messaging.js";
 import {onAuthStateChanged,signOut,updatePassword,deleteUser,EmailAuthProvider,reauthenticateWithCredential} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
-import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+import {collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,query,where,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 import { startPresence, stopPresence } from "./presence.js";
     import {
   ref,
@@ -2316,40 +2316,14 @@ window.resetPin=async()=>{
 
   try{
     if(hiddenIds.length){
-      // Read all hidden-chat messages in parallel instead of one chat/message
-      // at a time, which made reset noticeably slow for large histories.
-      const messageSnaps=await Promise.all(hiddenIds.map(chatId=>
-        getDocs(collection(db,"chats",chatId,"messages"))
-      ));
-      const pending=[];
+      // Use the chat's last-message timestamp as a per-user reset boundary.
+      // This avoids reading every message and creating one deletedFor marker
+      // per message, which can exhaust the Firestore free daily read quota.
       const newestTimes={};
 
-      messageSnaps.forEach((snap,index)=>{
-        const chatId=hiddenIds[index];
-        let newestTime=0;
-        snap.docs.forEach(messageDoc=>{
-          const message=messageDoc.data();
-          const stamp=message.createdAt?.toMillis?.()||
-            (message.createdAt?.seconds?message.createdAt.seconds*1000:0);
-          if(stamp>newestTime)newestTime=stamp;
-          pending.push({
-            ref:doc(db,"chats",chatId,"messages",messageDoc.id,"deletedFor",currentUser.uid),
-            data:{messageId:messageDoc.id,deletedAt:serverTimestamp()}
-          });
-        });
+      for(const chatId of hiddenIds){
         const chat=allChats.find(item=>item.id===chatId)||{};
-        newestTimes[chatId]=Math.max(newestTime,getChatLastMessageTime(chat));
-      });
-
-      // Check existing per-user markers together; only create missing ones.
-      const markerSnaps=await Promise.all(pending.map(item=>getDoc(item.ref)));
-      const missing=pending.filter((item,index)=>!markerSnaps[index].exists());
-
-      // Firestore batches are limited to 500 writes. Use 450 for headroom.
-      for(let i=0;i<missing.length;i+=450){
-        const batch=writeBatch(db);
-        missing.slice(i,i+450).forEach(item=>batch.set(item.ref,item.data));
-        await batch.commit();
+        newestTimes[chatId]=getChatLastMessageTime(chat);
       }
 
       settings.chatResetAt=settings.chatResetAt||{};
@@ -2362,10 +2336,12 @@ window.resetPin=async()=>{
     settings.secretSalt="";
     settings.secretHash="";
     await saveSettings();
+
     showingHidden=false;
     $("search").value="";
     $("search").placeholder="Search";
     renderChats();
+
     await ask("Success",hiddenIds.length
       ? "Secret Code reset. Hidden chats and their existing messages are removed from your account only. Other users' chat history is unchanged."
       : "Secret Code reset. A new 6-digit code will be requested the next time you hide a chat.");
