@@ -1180,6 +1180,23 @@ async function syncMitraUser(){
   return result;
 }
 
+window.migrateMitraSearchUsers=async function(){
+  if(!currentUser)throw new Error("Please log in to Mitra first.");
+  const token=await currentUser.getIdToken();
+  const response=await fetch(MITRA_SEARCH_API+"/admin-migrate",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+token
+    },
+    body:JSON.stringify({})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||"Mitra user migration failed.");
+  console.log("Mitra D1 migration result:",result);
+  return result;
+};
+
 async function findUserByUsername(value){
   const username=value.trim().replace(/^@/,"").toLowerCase();
   const result=await searchMitraUser("username",username);
