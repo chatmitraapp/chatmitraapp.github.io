@@ -1204,20 +1204,33 @@ async function createChatWithIdentifier(value){
       return;
     }
 
-    // Reuse only a conversation that is still active for this account.
-    // Deleted/hidden old conversations are never un-deleted by searching.
-    let chat=allChats
+    // Reuse the existing conversation for this participant, even if this
+    // account previously deleted it. Deletion is local-only: the other
+    // participant must continue seeing the same conversation document.
+    const originalChatId=members.join("_");
+    const matchingChats=allChats
       .filter(c=>
         Array.isArray(c.members)
         && c.members.length===2
         && members.every(uid=>c.members.includes(uid))
-        && !settings.deletedChatIds.includes(c.id)
         && !settings.hiddenChatIds.includes(c.id)
       )
-      .sort((a,b)=>
-        (b.lastMessageAt?.toMillis?.()||0)-
-        (a.lastMessageAt?.toMillis?.()||0)
-      )[0]||null;
+      .sort((a,b)=>{
+        if(a.id===originalChatId)return -1;
+        if(b.id===originalChatId)return 1;
+        const at=a.createdAt?.toMillis?.()||0;
+        const bt=b.createdAt?.toMillis?.()||0;
+        return at-bt;
+      });
+
+    let chat=matchingChats[0]||null;
+
+    if(chat){
+      // Restore this same conversation for the current account only.
+      settings.deletedChatIds=settings.deletedChatIds.filter(id=>id!==chat.id);
+      if(settings.chatResetAt) delete settings.chatResetAt[chat.id];
+      await saveSettings();
+    }
 
     if(!chat){
       const memberNames=members.map(uid=>
@@ -1231,17 +1244,18 @@ async function createChatWithIdentifier(value){
         lastMessageAt:serverTimestamp()
       };
 
-      // Keep the original deterministic ID for a first-ever conversation.
-      // If that ID already exists (for example, it was deleted only for me),
-      // create a new conversation document so the old history stays dismissed.
-      const originalChatId=members.join("_");
-      const originalChat=allChats.find(c=>c.id===originalChatId);
-      if(!originalChat && !settings.deletedChatIds.includes(originalChatId)){
+      // Create a document only when no conversation exists for this pair.
+      if(!allChats.some(c=>
+        Array.isArray(c.members)
+        && c.members.length===2
+        && members.every(uid=>c.members.includes(uid))
+      )){
         await setDoc(doc(db,"chats",originalChatId),data);
         chat={id:originalChatId,...data};
       }else{
-        const newChatRef=await addDoc(collection(db,"chats"),data);
-        chat={id:newChatRef.id,...data};
+        // A matching chat may be hidden; never create a second conversation.
+        await ask("Chat Unavailable","This user's existing conversation is hidden. Unhide it before starting a new chat.");
+        return;
       }
     }else{
       // Refresh both participant names from the authenticated search result/current profile.
