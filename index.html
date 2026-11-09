@@ -1368,6 +1368,10 @@ updateChatPresence(otherId);
   reactionListeners.forEach(unsub => unsub());
   reactionListeners.clear();
 
+  // Cache per-message hidden checks while this chat remains open.
+  // This prevents every message snapshot from re-reading old markers.
+  const hiddenMessageCache = new Map();
+
   const box = $("messages");
   box.innerHTML = '<div class="notice">Loading all messages...</div>';
   delete box.dataset.loaded;
@@ -1411,39 +1415,20 @@ updateChatPresence(otherId);
             currentUser.uid
           );
 
-          const reactionRef = collection(
-            db,
-            "chats",
-            currentChatId,
-            "messages",
-            m.id,
-            "reactions"
-          );
-
-          const [hiddenSnap, reactionSnap] = await Promise.all([
-            getDoc(hiddenRef),
-            getDocs(reactionRef)
-          ]);
-
-          if (hiddenSnap.exists()) {
-            return null;
+          let isHidden = hiddenMessageCache.get(m.id);
+          if (isHidden === undefined) {
+            const hiddenSnap = await getDoc(hiddenRef);
+            isHidden = hiddenSnap.exists();
+            hiddenMessageCache.set(m.id, isHidden);
           }
 
-          const reactionCounts = {};
+          if (isHidden) return null;
 
-          reactionSnap.forEach(r => {
-            const emoji = r.data().emoji;
-            if (emoji) {
-              reactionCounts[emoji] =
-                (reactionCounts[emoji] || 0) + 1;
-            }
-          });
-
-          const reactionHTML = reactionChipsHTML(reactionCounts);
-
+          // Reactions are loaded by their live listener below. Do not issue
+          // a separate getDocs() for every message on every chat snapshot.
           return {
             message: m,
-            reactionHTML
+            reactionHTML: ""
           };
         });
 
@@ -1587,10 +1572,21 @@ updateChatPresence(otherId);
         // Replace the complete message list in one operation.
         box.replaceChildren(fragment);
 
-        reactionListeners.forEach(unsub => unsub());
-        reactionListeners.clear();
+        const visibleMessageIds = new Set(validMessages.map(item => item.message.id));
+
+        // Keep existing reaction listeners instead of tearing them down and
+        // recreating them after every message update.
+        for (const [messageId, unsubscribe] of reactionListeners) {
+          if (!visibleMessageIds.has(messageId)) {
+            unsubscribe();
+            reactionListeners.delete(messageId);
+          }
+        }
+
         validMessages.forEach(item => {
           const m = item.message;
+          if (reactionListeners.has(m.id)) return;
+
           const reactionRef = collection(db, "chats", currentChatId, "messages", m.id, "reactions");
           const unsub = onSnapshot(reactionRef, reactionSnapshot => {
             const counts = {};
