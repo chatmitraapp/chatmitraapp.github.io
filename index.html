@@ -183,7 +183,6 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <div class="settingRow" onclick="changeAccountPassword()">🔑 Change Password</div>
 <div class="settingRow" onclick="deleteMitraAccount()" style="color:var(--danger)">🗑️ Delete Account Permanently</div>
 <div class="settingRow" onclick="toggleTheme()">◐ Change Theme</div>
-<div class="settingRow" onclick="changePin()">🔐 Change Secret Code</div>
 <div class="settingRow" onclick="resetPin()">♻️ Reset Secret Code</div>
 <div class="settingRow" onclick="showNormalChats()">💬 Show Normal Chats</div>
 <div class="settingRow" onclick="enableMitraNotifications()">🔔 Enable Notifications</div>
@@ -2238,24 +2237,6 @@ async function saveNewPin(pin){
   settings.secretHash=await hashPin(pin,settings.secretSalt);
   await saveSettings();
 }
-
-// Change secret code
-window.changePin=async()=>{
-  const pin=await ask("Secret Code","Enter a new 6-digit code",true);
-  if(pin===null)return;
-
-  if(!/^[0-9]{6}$/.test(pin)){
-    await ask("Invalid Code","Code must contain exactly 6 digits.");
-    return;
-  }
-
-  try{
-    await saveNewPin(pin);
-    await ask("Success","Secret Code updated.");
-  }catch(error){
-    await ask("Error",error.message);
-  }
-};
 
 // Reset secret code
 window.resetPin=async()=>{
