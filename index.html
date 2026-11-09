@@ -2143,22 +2143,26 @@ async function deleteChatForMe(chat){
   if(!await confirmBox("Remove this conversation and its messages from your account only? The other user's chat will remain."))return;
 
   try{
-    const newestMessageTime=await hideAllMessagesForMe(chat.id);
+    // First persist the chat-list deletion so a message-marker write cannot
+    // prevent the conversation from disappearing from this user's list.
+    const newestMessageTime=getChatLastMessageTime(chat);
     settings.deletedChatIds=[...new Set([...settings.deletedChatIds,chat.id])];
     settings.chatResetAt=settings.chatResetAt||{};
-    // Use the newest existing message's Firestore timestamp, not the
-    // device clock, so old messages cannot immediately undo the deletion.
     settings.chatResetAt[chat.id]=Math.max(
       newestMessageTime,
-      getChatLastMessageTime(chat),
       Number(settings.chatResetAt[chat.id]||0)
     );
     settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
     settings.mutedChatIds=settings.mutedChatIds.filter(x=>x!==chat.id);
     await saveSettings();
     renderChats();
+
+    // Also hide the existing messages for this account only. The other
+    // participant's conversation is never deleted.
+    await hideAllMessagesForMe(chat.id);
   }catch(error){
-    await ask("Delete Error",error.message);
+    console.error("Delete chat failed:",error);
+    await ask("Delete Error","Chat delete nahi ho paya: "+(error.message||String(error)));
   }
 }
 
