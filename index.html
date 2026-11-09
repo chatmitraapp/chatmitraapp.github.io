@@ -167,6 +167,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 <p id="profileUsername" class="message"></p>
 </div>
 <div class="settingRow" id="usernameSetting" onclick="setUsername()">👤 Create Username</div>
+<div class="settingRow" id="mobileSetting" onclick="setMobileNumber()">📱 Add Mobile Number</div>
 <div class="settingRow" onclick="changeProfile()">✏️ Edit Profile</div>
 <div class="settingRow" onclick="changeAccountPassword()">🔑 Change Password</div>
 <div class="settingRow" onclick="deleteMitraAccount()" style="color:var(--danger)">🗑️ Delete Account Permanently</div>
@@ -567,6 +568,7 @@ $("errorInfo").textContent="";
     setTimeout(showMitraFirstLaunchNotificationPrompt, 1200);
     $("profileName").textContent=currentProfile.name||"Mitra User";
     $("profileEmail").textContent=currentProfile.email||user.email;
+    updateMobileSettingLabel();
     $("profileUsername").textContent=currentProfile.username?"@"+currentProfile.username:"Username: Not set";
     updateUsernameSettingLabel();
     status("Loading settings...");
@@ -1065,6 +1067,40 @@ function updateUsernameSettingLabel(){
     : "👤 Create Username";
 }
 
+function updateMobileSettingLabel(){
+  const row=$("mobileSetting");
+  if(row)row.textContent=currentProfile?.mobile
+    ? "📱 Mobile: "+currentProfile.mobile+" (Change)"
+    : "📱 Add Mobile Number";
+}
+window.setMobileNumber=async()=>{
+  const value=await ask("Mobile Number","Enter your 10-digit Indian mobile number",true,currentProfile?.mobile||"");
+  if(value===null)return;
+  const mobile=value.trim().replace(/\D/g,"").replace(/^91/,"");
+  if(!/^[6-9]\d{9}$/.test(mobile)){
+    await ask("Invalid Number","Enter a valid 10-digit Indian mobile number.");
+    return;
+  }
+  try{
+    const q=query(collection(db,"publicUsers"),where("mobile","==",mobile));
+    const matches=await getDocs(q);
+    if(matches.docs.some(d=>d.id!==currentUser.uid)){
+      await ask("Number Already Used","This mobile number is already linked to another Mitra account.");
+      return;
+    }
+    await updateDoc(doc(db,"users",currentUser.uid),{mobile});
+    await updateDoc(doc(db,"publicUsers",currentUser.uid),{
+      mobile,
+      email:currentProfile.email||currentUser.email||""
+    });
+    currentProfile.mobile=mobile;
+    updateMobileSettingLabel();
+    await ask("Success","Mobile number saved. You can now log in using this number and your existing password.");
+  }catch(error){
+    await ask("Mobile Number Error",error.message+" Firestore Rules may need to allow the mobile field.");
+  }
+};
+
 window.setUsername=async()=>{
   const value=await ask(
     "Create Username",
@@ -1113,24 +1149,42 @@ async function findUserByUsername(value){
   const result=await getDocs(q);
   return result.docs.find(d=>d.id!==currentUser.uid);
 }
+async function findUserByMobile(value){
+  const mobile=value.trim().replace(/\D/g,"").replace(/^91/,"");
+  const q=query(collection(db,"publicUsers"),where("mobile","==",mobile));
+  const result=await getDocs(q);
+  return result.docs.find(d=>d.id!==currentUser.uid);
+}
 
 window.newChat=async()=>{
-  const username=await ask("New Chat","Enter Mitra username (e.g. @neelu)",true);
-  if(username!==null)await createChatWithUsername(username.trim());
+  const identifier=await ask("New Chat","Enter username or 10-digit mobile number",true);
+  if(identifier!==null)await createChatWithIdentifier(identifier.trim());
 };
 
-async function createChatWithUsername(value){
-  const username=value.trim().replace(/^@/,"").toLowerCase();
-  if(!/^[a-z0-9_.]{3,20}$/.test(username)){
-    await ask("Invalid Username","Enter a valid username (3–20 characters).");
-    return;
+async function createChatWithIdentifier(value){
+  const input=value.trim();
+  const isMobile=/^[+\d\s()-]+$/.test(input)&&input.replace(/\D/g,"").length>=10;
+  if(isMobile){
+    const mobile=input.replace(/\D/g,"").replace(/^91/,"");
+    if(!/^[6-9]\d{9}$/.test(mobile)){
+      await ask("Invalid Mobile Number","Enter a valid 10-digit Indian mobile number.");
+      return;
+    }
+  }else{
+    const username=input.replace(/^@/,"").toLowerCase();
+    if(!/^[a-z0-9_.]{3,20}$/.test(username)){
+      await ask("Invalid Username","Enter a valid username (3–20 characters).");
+      return;
+    }
   }
   try{
-    status("Searching username...");
-    const found=await findUserByUsername(username);
+    status("Searching Mitra user...");
+    const found=isMobile
+      ? await findUserByMobile(input)
+      : await findUserByUsername(input);
     if(!found){
       status("Connected to Mitra");
-      await ask("User not found","Check the username or ask the person to create one in Settings.");
+      await ask("User not found","No Mitra account found with this username or mobile number.");
       return;
     }
 
