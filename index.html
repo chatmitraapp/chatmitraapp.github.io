@@ -149,7 +149,7 @@ header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-i
 
 <div id="homeScreen">
 <div class="search">
-<input id="search" placeholder="⌕ Search chats or enter secret code..." oninput="filterChats()" onkeydown="searchEnter(event)">
+<input id="search" placeholder="Search" oninput="filterChats()" onkeydown="searchEnter(event)">
 </div>
 
 <div class="section" id="listTitle">Recent Chats</div>
@@ -2229,7 +2229,7 @@ window.closeSettings=()=>{
 window.showNormalChats=()=>{
   showingHidden=false;
   $("search").value="";
-  $("search").placeholder="⌕ Search chats or enter secret code...";
+  $("search").placeholder="Search";
   closeSettings();
 };
 
