@@ -56,8 +56,7 @@ messaging.onBackgroundMessage(payload => {
     },
 
     tag: data.chatId || "mitra-message",
-    renotify: false,
-    silent: true
+    renotify: true
   };
 
   return self.registration.showNotification(title, options);
