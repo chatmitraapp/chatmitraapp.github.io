@@ -12,10 +12,10 @@
   "description": "Mitra is a simple and secure messaging app.",
   "icons": [
     {
-      "src": "./mitra-icon.svg",
+      "src": "./mitra-icon.svg?v=3",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "./mitra-icon-192.png?v=2",
