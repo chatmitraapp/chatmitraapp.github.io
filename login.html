@@ -259,7 +259,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 
 import {
- doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs
+ doc, setDoc, getDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
 window.registerMitra = async function(){
@@ -349,24 +349,36 @@ window.loginMitra = async function(){
 
 try{
   let email=identifier;
+
   if(!validEmail(identifier)){
     const mobile=identifier.replace(/\D/g,'').replace(/^91/,'');
+
     if(!/^[6-9]\d{9}$/.test(mobile)){
       message('loginStatus','Enter a valid email or 10-digit mobile number.');
       return;
     }
-    const mobileQuery=query(collection(db,'publicUsers'),where('mobile','==',mobile));
-    const mobileResult=await getDocs(mobileQuery);
-    if(mobileResult.empty){
-      message('loginStatus','No account found with this mobile number. Add your mobile number to your Mitra profile first.');
+
+    const lookupResponse=await fetch(
+      'https://mitra-account-api.deveshbabu2001.workers.dev/mobile-login',
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({mobile,password})
+      }
+    );
+
+    const lookupData=await lookupResponse.json().catch(()=>({}));
+
+    if(!lookupResponse.ok || !lookupData.email){
+      message('loginStatus',lookupData.error==='Unable to login right now'
+        ? 'Login service is temporarily unavailable. Please try again.'
+        : 'Invalid mobile number or password.');
       return;
     }
-    email=mobileResult.docs[0].data().email||'';
-    if(!email){
-      message('loginStatus','Mobile login is not set up for this account yet. Please login with email once.');
-      return;
-    }
+
+    email=lookupData.email;
   }
+
   const result = await signInWithEmailAndPassword(auth,email,password);
   const user = result.user;
 
