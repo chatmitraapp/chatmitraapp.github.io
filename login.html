@@ -96,9 +96,9 @@ input:focus{border-color:var(--accent)}
 
   <div class="card">
    <div class="field">
-    <label>Email Address</label>
-    <input id="loginEmail" type="email"
-     placeholder="Enter your email" autocomplete="email">
+    <label>Email or Mobile Number</label>
+    <input id="loginEmail" type="text"
+     placeholder="Enter email or 10-digit mobile number" autocomplete="username">
    </div>
 
    <div class="field">
@@ -141,6 +141,12 @@ input:focus{border-color:var(--accent)}
     <label>Email Address</label>
     <input id="regEmail" type="email"
      placeholder="Enter your email" autocomplete="email">
+   </div>
+
+   <div class="field">
+    <label>Mobile Number</label>
+    <input id="regMobile" type="tel" inputmode="numeric"
+     placeholder="Enter 10-digit mobile number" autocomplete="tel">
    </div>
 
    <div class="field">
@@ -253,13 +259,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 
 import {
- doc, setDoc, getDoc, serverTimestamp
+ doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
 window.registerMitra = async function(){
 
  const name=document.getElementById('regName').value.trim();
  const email=document.getElementById('regEmail').value.trim();
+ const mobile=document.getElementById('regMobile').value.trim().replace(/\D/g,'').replace(/^91/,'');
  const password=document.getElementById('regPassword').value;
  const confirm=document.getElementById('confirmPassword').value;
 
@@ -271,6 +278,10 @@ window.registerMitra = async function(){
  }
  if(!validEmail(email)){
   message('registerStatus','Enter a valid email address.');
+  return;
+ }
+ if(!/^[6-9]\d{9}$/.test(mobile)){
+  message('registerStatus','Enter a valid 10-digit Indian mobile number.');
   return;
  }
  if(password.length<8){
@@ -295,12 +306,15 @@ window.registerMitra = async function(){
    uid:user.uid,
    name:name,
    email:email,
+   mobile:mobile,
    createdAt:serverTimestamp()
   });
    
 await setDoc(doc(db,'publicUsers',user.uid),{
   uid:user.uid,
   name:name,
+  email:email,
+  mobile:mobile,
   username:""
 });
    
@@ -316,13 +330,13 @@ await setDoc(doc(db,'publicUsers',user.uid),{
 
 window.loginMitra = async function(){
 
- const email=document.getElementById('loginEmail').value.trim();
+ const identifier=document.getElementById('loginEmail').value.trim();
  const password=document.getElementById('loginPassword').value;
 
  message('loginStatus','');
 
- if(!validEmail(email)){
-  message('loginStatus','Enter a valid email address.');
+ if(!identifier){
+  message('loginStatus','Enter your email or mobile number.');
   return;
  }
  if(!password){
@@ -334,6 +348,25 @@ window.loginMitra = async function(){
  message('loginStatus','Signing in...');
 
 try{
+  let email=identifier;
+  if(!validEmail(identifier)){
+    const mobile=identifier.replace(/\D/g,'').replace(/^91/,'');
+    if(!/^[6-9]\d{9}$/.test(mobile)){
+      message('loginStatus','Enter a valid email or 10-digit mobile number.');
+      return;
+    }
+    const mobileQuery=query(collection(db,'publicUsers'),where('mobile','==',mobile));
+    const mobileResult=await getDocs(mobileQuery);
+    if(mobileResult.empty){
+      message('loginStatus','No account found with this mobile number. Add your mobile number to your Mitra profile first.');
+      return;
+    }
+    email=mobileResult.docs[0].data().email||'';
+    if(!email){
+      message('loginStatus','Mobile login is not set up for this account yet. Please login with email once.');
+      return;
+    }
+  }
   const result = await signInWithEmailAndPassword(auth,email,password);
   const user = result.user;
 
@@ -348,6 +381,8 @@ try{
   await setDoc(doc(db,'publicUsers',user.uid),{
     uid:user.uid,
     name:profile.name,
+    email:profile.email||user.email||"",
+    mobile:profile.mobile||"",
     username:profile.username||""
   });
 
