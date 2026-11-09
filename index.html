@@ -2054,8 +2054,9 @@ async function deleteMessageForMe(message){
 }
   // Require a valid 6-digit Secret Code before hiding any chat.
 async function ensureSecretCode(){
+  // Ask for a new code only when the user has not set one yet.
   if(settings.secretHash)return true;
-  const pin=await ask("Create Secret Code","Set a 6-digit Secret Code first. You will use it in the search box to open Hidden Chats.",true);
+  const pin=await ask("Set Secret Code","You haven't set a Secret Code yet. Create a 6-digit code to hide this chat. You will use it in the search box to open Hidden Chats.",true);
   if(pin===null)return false;
   if(!/^[0-9]{6}$/.test(pin)){
     await ask("Invalid Code","Secret Code must contain exactly 6 digits. Chat was not hidden.");
