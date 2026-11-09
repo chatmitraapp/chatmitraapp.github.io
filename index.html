@@ -275,6 +275,8 @@ async function setupMitraForegroundMessaging(){
       const title = payload.notification?.title || payload.data?.title || "Mitra";
       const body = payload.notification?.body || payload.data?.body || "You have a new message";
       const chatId = payload.data?.chatId || "";
+      // Muted or hidden chats must not create a notification or sound.
+      if(chatId && (settings.mutedChatIds?.includes(chatId) || settings.hiddenChatIds?.includes(chatId))) return;
       // Save unread state for this recipient; never open an in-app dialog.
       if(chatId && currentUser){
         localStorage.setItem("mitra_unread_"+currentUser.uid+"_"+chatId,String(Date.now()));
