@@ -1158,10 +1158,12 @@ async function searchMitraUser(type,value,mode="search"){
 }
 
 async function syncMitraUser(){
-  if(!currentUser||!currentProfile)return;
+  if(!currentUser||!currentProfile)throw new Error("Please log in to Mitra first.");
   const username=currentProfile.username||"";
   const mobile=currentProfile.mobile||"";
-  if(!username&&!mobile)return;
+  if(!username&&!mobile){
+    return {success:false,skipped:true,reason:"Add a mobile number or username to make your account searchable."};
+  }
   const token=await currentUser.getIdToken();
   const response=await fetch(MITRA_SEARCH_API+"/sync",{
     method:"POST",
@@ -1179,6 +1181,14 @@ async function syncMitraUser(){
   if(!response.ok)throw new Error(result.error||"Could not sync your Mitra search profile.");
   return result;
 }
+
+// Manually sync the currently signed-in account to D1.
+// This does not read the Firestore users collection or run a bulk migration.
+window.syncMitraSearchNow=async function(){
+  const result=await syncMitraUser();
+  console.log("Mitra D1 profile sync:",result);
+  return result;
+};
 
 window.migrateMitraSearchUsers=async function(){
   if(!currentUser)throw new Error("Please log in to Mitra first.");
@@ -2563,6 +2573,13 @@ window.changeProfile=async()=>{
     // Update local profile.
     currentProfile.name=newName;
     $("profileName").textContent=newName;
+
+    // Keep the searchable D1 profile name in sync as well.
+    try{
+      await syncMitraUser();
+    }catch(syncError){
+      console.warn("Profile name saved; D1 sync will retry on next login:",syncError);
+    }
 
     // Find all existing chats of this account.
     const chatsQuery=query(
