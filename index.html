@@ -578,6 +578,11 @@ $("errorInfo").textContent="";
     const profileSnap=await getDoc(doc(db,"users",user.uid));
     if(!profileSnap.exists()){status("Profile not found.");return;}
     currentProfile=profileSnap.data();
+    try{
+      await syncMitraUser();
+    }catch(syncError){
+      console.warn("Mitra search profile sync will retry later:",syncError);
+    }
     setTimeout(showMitraFirstLaunchNotificationPrompt, 1200);
     $("profileName").textContent=currentProfile.name||"Mitra User";
     $("profileEmail").textContent=currentProfile.email||user.email;
@@ -1081,6 +1086,11 @@ window.setMobileNumber=async()=>{
     }
     await updateDoc(doc(db,"users",currentUser.uid),{mobile});
     currentProfile.mobile=mobile;
+    try{
+      await syncMitraUser();
+    }catch(syncError){
+      console.warn("Mobile saved in Firebase; D1 search sync pending:",syncError);
+    }
     updateMobileSettingLabel();
     await ask("Success","Mobile number saved. You can now log in using this number and your existing password.");
   }catch(error){
@@ -1115,6 +1125,11 @@ window.setUsername=async()=>{
     });
 
     currentProfile.username=username;
+    try{
+      await syncMitraUser();
+    }catch(syncError){
+      console.warn("Username saved in Firebase; D1 search sync pending:",syncError);
+    }
     $("profileUsername").textContent="@"+username;
     updateUsernameSettingLabel();
     await ask("Success","Your username is now @"+username+". Others can find you using this username.");
@@ -1123,21 +1138,45 @@ window.setUsername=async()=>{
   }
 };
 
-const MITRA_ACCOUNT_API="https://mitra-account-api.deveshbabu2001.workers.dev/user-search";
+const MITRA_SEARCH_API="https://mitra-search-api.deveshbabu2001.workers.dev";
 
 async function searchMitraUser(type,value,mode="search"){
   if(!currentUser)throw new Error("Please log in again.");
   const token=await currentUser.getIdToken();
-  const response=await fetch(MITRA_ACCOUNT_API,{
+  const endpoint=mode==="availability"?"/availability":"/search";
+  const response=await fetch(MITRA_SEARCH_API+endpoint,{
     method:"POST",
     headers:{
       "Content-Type":"application/json",
       "Authorization":"Bearer "+token
     },
-    body:JSON.stringify({type,value,mode})
+    body:JSON.stringify({type,value})
   });
   const result=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(result.error||"User search service is unavailable.");
+  return result;
+}
+
+async function syncMitraUser(){
+  if(!currentUser||!currentProfile)return;
+  const username=currentProfile.username||"";
+  const mobile=currentProfile.mobile||"";
+  if(!username&&!mobile)return;
+  const token=await currentUser.getIdToken();
+  const response=await fetch(MITRA_SEARCH_API+"/sync",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+token
+    },
+    body:JSON.stringify({
+      username,
+      mobile,
+      name:currentProfile.name||currentUser.displayName||"Mitra User"
+    })
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||"Could not sync your Mitra search profile.");
   return result;
 }
 
