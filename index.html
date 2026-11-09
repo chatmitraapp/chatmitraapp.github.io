@@ -1177,6 +1177,23 @@ async function createChatWithIdentifier(value){
     const other=found;
     const members=[currentUser.uid,other.uid].sort();
 
+    // Do not create/open a duplicate conversation when this user already has
+    // a hidden conversation with the same participant. They must unhide it first.
+    const hiddenChat=allChats.find(c=>
+      Array.isArray(c.members)
+      && c.members.length===2
+      && members.every(uid=>c.members.includes(uid))
+      && settings.hiddenChatIds.includes(c.id)
+    );
+    if(hiddenChat){
+      status("Connected to Mitra");
+      await ask(
+        "Chat Already Hidden",
+        "This user's chat is already in Hidden Chats. Open Hidden Chats with your Secret Code and unhide the existing conversation before starting a new chat."
+      );
+      return;
+    }
+
     // Reuse only a conversation that is still active for this account.
     // Deleted/hidden old conversations are never un-deleted by searching.
     let chat=allChats.find(c=>
