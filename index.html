@@ -2052,7 +2052,26 @@ async function deleteMessageForMe(message){
     await ask("Delete Error",error.message);
   }
 }
-  // Chat list menu
+  // Require a valid 6-digit Secret Code before hiding any chat.
+async function ensureSecretCode(){
+  if(settings.secretHash)return true;
+  const pin=await ask("Create Secret Code","Set a 6-digit Secret Code first. You will use it in the search box to open Hidden Chats.",true);
+  if(pin===null)return false;
+  if(!/^[0-9]{6}$/.test(pin)){
+    await ask("Invalid Code","Secret Code must contain exactly 6 digits. Chat was not hidden.");
+    return false;
+  }
+  const confirmPin=await ask("Confirm Secret Code","Re-enter your 6-digit Secret Code.",true);
+  if(confirmPin===null)return false;
+  if(confirmPin!==pin){
+    await ask("Code Mismatch","The Secret Codes do not match. Chat was not hidden.");
+    return false;
+  }
+  try{await saveNewPin(pin);return true;}
+  catch(error){await ask("Error","Could not save Secret Code: "+(error.message||error));return false;}
+}
+
+// Chat list menu
 async function chatListMenu(chat){
   const hidden=settings.hiddenChatIds.includes(chat.id);
   const muted=settings.mutedChatIds.includes(chat.id);
@@ -2082,6 +2101,7 @@ async function chatListMenu(chat){
     if(settings.hiddenChatIds.includes(chat.id)){
       settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
     }else{
+      if(!(await ensureSecretCode()))return;
       settings.hiddenChatIds.push(chat.id);
     }
     await saveSettings();
@@ -2283,33 +2303,36 @@ async function saveNewPin(pin){
 
 // Reset secret code
 window.resetPin=async()=>{
-  if(!settings.hiddenChatIds.length){
-    await ask("No Hidden Chats","There are no hidden chats to remove. Your Secret Code can still be reset.");
-  }
-
-  if(!await confirmBox("Reset Secret Code? All hidden chats and their existing messages will be removed from your account only. The other users' chats and messages will remain."))return;
+  const hiddenIds=[...new Set(settings.hiddenChatIds)];
+  const message=hiddenIds.length
+    ? "Reset Secret Code? Hidden chats and their existing messages will be removed from your account only. Other users' chats and messages will remain."
+    : "Reset Secret Code? Your current code will be cleared. No chats will be changed.";
+  if(!await confirmBox(message))return;
 
   try{
-    const hiddenIds=[...new Set(settings.hiddenChatIds)];
-    for(const chatId of hiddenIds){
-      await hideAllMessagesForMe(chatId);
-      settings.chatResetAt=settings.chatResetAt||{};
-      settings.chatResetAt[chatId]=Date.now();
+    if(hiddenIds.length){
+      for(const chatId of hiddenIds){
+        const newestMessageTime=await hideAllMessagesForMe(chatId);
+        const chat=allChats.find(item=>item.id===chatId)||{};
+        settings.chatResetAt=settings.chatResetAt||{};
+        settings.chatResetAt[chatId]=Math.max(newestMessageTime,getChatLastMessageTime(chat));
+      }
+      settings.deletedChatIds=[...new Set([...settings.deletedChatIds,...hiddenIds])];
+      settings.mutedChatIds=settings.mutedChatIds.filter(id=>!hiddenIds.includes(id));
     }
-
-    settings.deletedChatIds=[...new Set([...settings.deletedChatIds,...hiddenIds])];
     settings.hiddenChatIds=[];
-    settings.mutedChatIds=settings.mutedChatIds.filter(id=>!hiddenIds.includes(id));
     settings.secretSalt="";
     settings.secretHash="";
     await saveSettings();
-
     showingHidden=false;
     $("search").value="";
+    $("search").placeholder="Search";
     renderChats();
-    await ask("Success","Secret Code reset. Hidden chats and their existing messages are now removed from your account only. Other users' chat history is unchanged.");
+    await ask("Success",hiddenIds.length
+      ? "Secret Code reset. Hidden chats and their existing messages are removed from your account only. Other users' chat history is unchanged."
+      : "Secret Code reset. A new 6-digit code will be requested the next time you hide a chat.");
   }catch(error){
-    await ask("Reset Error","Could not reset hidden chats completely: "+(error.message||error));
+    await ask("Reset Error","Could not reset Secret Code: "+(error.message||error));
   }
 };
 
