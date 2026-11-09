@@ -2098,10 +2098,40 @@ window.chatOptions=async()=>{
 
   if(choice==="hide"){
     if(settings.hiddenChatIds.includes(chat.id)){
+      // Unhiding an already hidden chat does not require creating a new code.
       settings.hiddenChatIds=settings.hiddenChatIds.filter(id=>id!==chat.id);
-    }else{
-      settings.hiddenChatIds.push(chat.id);
+      await saveSettings();
+      backHome();
+      return;
     }
+
+    // A Secret Code is mandatory before the first chat can be hidden.
+    if(!settings.secretHash){
+      const pin=await ask(
+        "Create Secret Code",
+        "Set a 6-digit Secret Code to hide chats. You will use this code in the search box to open Hidden Chats.",
+        true
+      );
+      if(pin===null)return;
+      if(!/^[0-9]{6}$/.test(pin)){
+        await ask("Invalid Code","Secret Code must contain exactly 6 digits. Chat was not hidden.");
+        return;
+      }
+      const confirmPin=await ask("Confirm Secret Code","Re-enter your 6-digit Secret Code.",true);
+      if(confirmPin===null)return;
+      if(confirmPin!==pin){
+        await ask("Code Mismatch","The Secret Codes do not match. Chat was not hidden.");
+        return;
+      }
+      try{
+        await saveNewPin(pin);
+      }catch(error){
+        await ask("Error","Could not save Secret Code: "+(error.message||error));
+        return;
+      }
+    }
+
+    settings.hiddenChatIds.push(chat.id);
     await saveSettings();
     backHome();
 
