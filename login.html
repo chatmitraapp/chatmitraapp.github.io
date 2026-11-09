@@ -309,15 +309,8 @@ window.registerMitra = async function(){
    mobile:mobile,
    createdAt:serverTimestamp()
   });
-   
-await setDoc(doc(db,'publicUsers',user.uid),{
-  uid:user.uid,
-  name:name,
-  email:email,
-  mobile:mobile,
-  username:""
-});
-   
+
+
   alert('Mitra account created successfully!');
   window.location.href='index.html';
 
@@ -390,13 +383,6 @@ try{
 
   const profile = profileSnap.data();
 
-  await setDoc(doc(db,'publicUsers',user.uid),{
-    uid:user.uid,
-    name:profile.name,
-    email:profile.email||user.email||"",
-    mobile:profile.mobile||"",
-    username:profile.username||""
-  });
 
   window.location.href='index.html';
 
