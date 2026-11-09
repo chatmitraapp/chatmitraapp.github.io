@@ -1,4 +1,3 @@
-
 {
   "background_color": "#ffffff",
   "dir": "ltr",
@@ -12,6 +11,12 @@
   "id": "https://chatmitraapp.github.io/",
   "description": "Mitra is a simple and secure messaging app.",
   "icons": [
+    {
+      "src": "./mitra-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "./mitra-icon-192.png?v=2",
       "sizes": "192x192",
