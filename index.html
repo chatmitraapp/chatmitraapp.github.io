@@ -2095,7 +2095,13 @@ async function chatListMenu(chat){
 // The shared chat and the other participant's messages remain untouched.
 async function hideAllMessagesForMe(chatId){
   const snap=await getDocs(collection(db,"chats",chatId,"messages"));
+  let newestMessageTime=0;
   for(const messageDoc of snap.docs){
+    const message=messageDoc.data();
+    const stamp=message.createdAt?.toMillis?.()||
+      (message.createdAt?.seconds?message.createdAt.seconds*1000:0);
+    if(stamp>newestMessageTime)newestMessageTime=stamp;
+
     const hiddenRef=doc(
       db,"chats",chatId,"messages",messageDoc.id,
       "deletedFor",currentUser.uid
@@ -2108,6 +2114,7 @@ async function hideAllMessagesForMe(chatId){
       });
     }
   }
+  return newestMessageTime;
 }
 
 // Delete complete chat for me only; do not delete the other user's history.
@@ -2115,10 +2122,16 @@ async function deleteChatForMe(chat){
   if(!await confirmBox("Remove this conversation and its messages from your account only? The other user's chat will remain."))return;
 
   try{
-    await hideAllMessagesForMe(chat.id);
+    const newestMessageTime=await hideAllMessagesForMe(chat.id);
     settings.deletedChatIds=[...new Set([...settings.deletedChatIds,chat.id])];
     settings.chatResetAt=settings.chatResetAt||{};
-    settings.chatResetAt[chat.id]=Date.now();
+    // Use the newest existing message's Firestore timestamp, not the
+    // device clock, so old messages cannot immediately undo the deletion.
+    settings.chatResetAt[chat.id]=Math.max(
+      newestMessageTime,
+      getChatLastMessageTime(chat),
+      Number(settings.chatResetAt[chat.id]||0)
+    );
     settings.hiddenChatIds=settings.hiddenChatIds.filter(x=>x!==chat.id);
     settings.mutedChatIds=settings.mutedChatIds.filter(x=>x!==chat.id);
     await saveSettings();
