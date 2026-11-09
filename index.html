@@ -932,43 +932,8 @@ function scrollMessagesToBottom(behavior = "smooth") {
 }
 
 async function refreshPublicChatName(chatId, otherId){
-  if(!otherId || publicNameCache.has(otherId) || publicNameLoads.has(otherId))return;
-  publicNameLoads.add(otherId);
-
-  try{
-    const profileSnap=await getDoc(doc(db,"publicUsers",otherId));
-    if(!profileSnap.exists())return;
-
-    const freshName=profileSnap.data().name;
-    if(!freshName)return;
-
-    publicNameCache.set(otherId,freshName);
-
-    const chat=allChats.find(c=>c.id===chatId);
-    if(chat){
-      const index=chat.members?.indexOf(otherId);
-      if(index!==-1 && index!==undefined){
-        chat.memberNames=[...(chat.memberNames||[])];
-        while(chat.memberNames.length<chat.members.length){
-          chat.memberNames.push("Mitra User");
-        }
-        chat.memberNames[index]=freshName;
-      }
-    }
-
-    if(activeChat?.id===chatId){
-      $("chatName").textContent=freshName;
-      $("chatAvatar").textContent=freshName.charAt(0).toUpperCase();
-    }
-
-    renderChats();
-  }catch(error){
-    console.warn("Could not refresh public chat name:",error);
-  }finally{
-    publicNameLoads.delete(otherId);
-  }
+  // Display name comes from chat.memberNames; do not read another user's profile.
 }
-
 function chatReadStorageKey(chatId){
   return "mitra_last_read_"+currentUser.uid+"_"+chatId;
 }
@@ -1095,17 +1060,12 @@ window.setMobileNumber=async()=>{
     return;
   }
   try{
-    const q=query(collection(db,"publicUsers"),where("mobile","==",mobile));
-    const matches=await getDocs(q);
-    if(matches.docs.some(d=>d.id!==currentUser.uid)){
+    const availability=await searchMitraUser("mobile",mobile,"availability");
+    if(!availability.available){
       await ask("Number Already Used","This mobile number is already linked to another Mitra account.");
       return;
     }
     await updateDoc(doc(db,"users",currentUser.uid),{mobile});
-    await updateDoc(doc(db,"publicUsers",currentUser.uid),{
-      mobile,
-      email:currentProfile.email||currentUser.email||""
-    });
     currentProfile.mobile=mobile;
     updateMobileSettingLabel();
     await ask("Success","Mobile number saved. You can now log in using this number and your existing password.");
@@ -1130,20 +1090,13 @@ window.setUsername=async()=>{
   }
 
   try{
-    const usernameQuery=query(
-      collection(db,"publicUsers"),
-      where("username","==",username)
-    );
-    const existing=await getDocs(usernameQuery);
-    if(existing.docs.some(d=>d.id!==currentUser.uid)){
+    const availability=await searchMitraUser("username",username,"availability");
+    if(!availability.available){
       await ask("Username Taken","This username is already in use. Choose another one.");
       return;
     }
 
     await updateDoc(doc(db,"users",currentUser.uid),{
-      username:username
-    });
-    await updateDoc(doc(db,"publicUsers",currentUser.uid),{
       username:username
     });
 
@@ -1156,17 +1109,33 @@ window.setUsername=async()=>{
   }
 };
 
+const MITRA_ACCOUNT_API="https://mitra-account-api.deveshbabu2001.workers.dev/user-search";
+
+async function searchMitraUser(type,value,mode="search"){
+  if(!currentUser)throw new Error("Please log in again.");
+  const token=await currentUser.getIdToken();
+  const response=await fetch(MITRA_ACCOUNT_API,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+token
+    },
+    body:JSON.stringify({type,value,mode})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||"User search service is unavailable.");
+  return result;
+}
+
 async function findUserByUsername(value){
   const username=value.trim().replace(/^@/,"").toLowerCase();
-  const q=query(collection(db,"publicUsers"),where("username","==",username));
-  const result=await getDocs(q);
-  return result.docs.find(d=>d.id!==currentUser.uid);
+  const result=await searchMitraUser("username",username);
+  return result.user||null;
 }
 async function findUserByMobile(value){
   const mobile=value.trim().replace(/\D/g,"").replace(/^91/,"");
-  const q=query(collection(db,"publicUsers"),where("mobile","==",mobile));
-  const result=await getDocs(q);
-  return result.docs.find(d=>d.id!==currentUser.uid);
+  const result=await searchMitraUser("mobile",mobile);
+  return result.user||null;
 }
 
 window.newChat=async()=>{
@@ -1201,7 +1170,7 @@ async function createChatWithIdentifier(value){
       return;
     }
 
-    const other=found.data();
+    const other=found;
     const members=[currentUser.uid,other.uid].sort();
     const chatId=members.join("_");
     let chat=allChats.find(c=>c.id===chatId);
@@ -1954,7 +1923,7 @@ async function messageMenu(message){
       const found=await findUserByUsername(username.trim());
       if(!found)return ask("User not found","This user is not registered on Mitra.");
 
-      const recipient=found.data();
+      const recipient=found;
       const members=[currentUser.uid,recipient.uid].sort();
       const chatId=members.join("_");
       const memberNames=members.map(uid=>uid===currentUser.uid?currentProfile.name:recipient.name);
@@ -2348,12 +2317,8 @@ window.changeProfile=async()=>{
   const newName=name.trim();
 
   try{
-    // Update both user profile documents.
+    // Update only this user's private profile.
     await updateDoc(doc(db,"users",currentUser.uid),{
-      name:newName
-    });
-
-    await updateDoc(doc(db,"publicUsers",currentUser.uid),{
       name:newName
     });
 
@@ -2462,7 +2427,6 @@ window.deleteMitraAccount=async()=>{
     await deleteDoc(doc(db,"userSettings",currentUser.uid)).catch(error=>{
       if(error.code!=="not-found")throw error;
     });
-    await deleteDoc(doc(db,"publicUsers",currentUser.uid));
     await deleteDoc(doc(db,"users",currentUser.uid));
 
     // Remove realtime presence, then delete the Firebase Authentication account.
