@@ -271,6 +271,7 @@ let presenceCache = {};
 let reactionListeners = new Map();
 let currentReply = null;
 let messageSearchVersion = 0;
+const restoringDeletedChats=new Set();
 
 // Firebase Cloud Messaging Web Push public VAPID key.
 const MITRA_VAPID_KEY = "BDFfkCvDB_glFWau6yJtRyHwU8l_4Pmoed6pgLuIOR44-VJusbCYhkg9NOZLIyZzlNmvZdwsGSTd5Y8u3Y-bznQ";
@@ -615,8 +616,37 @@ function listenChats(){
       ...d.data()
     }));
 
-    // Locally deleted chats stay dismissed on this account.
-    // A later incoming message must not silently restore an old conversation.
+    // Restore a locally deleted conversation only when the other participant
+    // has sent a genuinely new message. Old history remains hidden by deletedFor.
+    for(const chat of allChats){
+      if(!settings.deletedChatIds.includes(chat.id)) continue;
+      if(restoringDeletedChats.has(chat.id)) continue;
+      restoringDeletedChats.add(chat.id);
+      try{
+        const messageSnap=await getDocs(collection(db,"chats",chat.id,"messages"));
+        let newest=null;
+        let newestTime=0;
+        for(const messageDoc of messageSnap.docs){
+          const message=messageDoc.data();
+          const stamp=message.createdAt?.toMillis?.()||
+            (message.createdAt?.seconds?message.createdAt.seconds*1000:0);
+          if(stamp>newestTime){
+            newestTime=stamp;
+            newest=message;
+          }
+        }
+        const resetAt=Number(settings.chatResetAt?.[chat.id]||0);
+        if(newest && newest.senderId!==currentUser.uid && newestTime>resetAt){
+          settings.deletedChatIds=settings.deletedChatIds.filter(id=>id!==chat.id);
+          delete settings.chatResetAt[chat.id];
+          await saveSettings();
+        }
+      }catch(restoreError){
+        console.warn("Could not check deleted chat for a new incoming message:",restoreError);
+      }finally{
+        restoringDeletedChats.delete(chat.id);
+      }
+    }
 
     // Refresh the currently open chat header with the latest name.
     if(activeChat){
