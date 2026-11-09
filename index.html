@@ -1705,7 +1705,17 @@ window.cancelReply=()=>{
 window.sendMessage=async()=>{
   const input=$("messageInput");
   const text=input.value.trim();
-  if(!text||!activeChat||!currentUser)return;
+  console.info("[Mitra Push Debug] sendMessage entered", {
+    hasText:!!text, hasActiveChat:!!activeChat, hasCurrentUser:!!currentUser
+  });
+  if(!text||!activeChat||!currentUser){
+    console.warn("[Mitra Push Debug] stopped before send", {
+      hasText:!!text, hasActiveChat:!!activeChat, hasCurrentUser:!!currentUser
+    });
+    return;
+  }
+  const pushChatId=activeChat.id;
+  const pushSenderUid=currentUser.uid;
   // Keep the keyboard ready for the next message.
   try{ input.focus({preventScroll:true}); }catch(_){ input.focus(); }
   input.value="";
@@ -1722,24 +1732,29 @@ window.sendMessage=async()=>{
       senderId: currentReply.senderId,
       senderName: currentReply.senderName || (currentReply.senderId === currentUser.uid ? (currentProfile?.name || "You") : (activeChat.memberNames?.[activeChat.members?.indexOf(currentReply.senderId)] || "Mitra User"))
     };
-    await addDoc(collection(db,"chats",activeChat.id,"messages"),messageData);
+    console.info("[Mitra Push Debug] saving Firestore message", {chatId:pushChatId});
+    await addDoc(collection(db,"chats",pushChatId,"messages"),messageData);
+    console.info("[Mitra Push Debug] Firestore message saved", {chatId:pushChatId});
     scrollMessagesToBottom("smooth");
     cancelReply();
-    // Keep the chat preview update compatible with the current Firestore rules.
-    // The message itself has already been saved successfully above.
     try{
-      await updateDoc(doc(db,"chats",activeChat.id),{
+      await updateDoc(doc(db,"chats",pushChatId),{
         lastMessage:text,
         lastMessageAt:serverTimestamp()
       });
+      console.info("[Mitra Push Debug] chat preview updated");
     }catch(chatUpdateError){
-      console.warn("Message saved, but chat preview update was blocked:",chatUpdateError);
+      console.warn("[Mitra Push Debug] chat preview update failed", chatUpdateError);
     }
 
-    // Send a push notification through the Cloudflare Worker.
-    // Push failures must not undo or report failure for a message already saved.
     try{
+      console.info("[Mitra Push Debug] preparing Worker request", {
+        endpoint:"https://mitra-push.deveshbabu2001.workers.dev/",
+        senderUid:pushSenderUid,
+        chatId:pushChatId
+      });
       const firebaseIdToken = await currentUser.getIdToken();
+      console.info("[Mitra Push Debug] Firebase ID token obtained");
       const pushResponse = await fetch("https://mitra-push.deveshbabu2001.workers.dev/",{
         method:"POST",
         headers:{
@@ -1747,21 +1762,28 @@ window.sendMessage=async()=>{
           "Authorization":"Bearer " + firebaseIdToken
         },
         body:JSON.stringify({
-          chatId:activeChat.id,
+          chatId:pushChatId,
           text,
           senderName:currentProfile?.name || "Mitra User"
         })
       });
-      const pushResult = await pushResponse.json().catch(()=>({}));
+      console.info("[Mitra Push Debug] Worker response received", {
+        status:pushResponse.status, ok:pushResponse.ok
+      });
+      const pushResult = await pushResponse.json().catch(async()=>{
+        const responseText=await pushResponse.clone().text().catch(()=>"");
+        return {unparsedResponse:responseText};
+      });
       if(!pushResponse.ok){
-        console.warn("Mitra push notification failed:",pushResult.error || pushResponse.status);
+        console.error("[Mitra Push Debug] Worker rejected request", pushResult);
       }else{
-        console.log("Mitra push result:",pushResult);
+        console.info("[Mitra Push Debug] Worker result", pushResult);
       }
     }catch(pushError){
-      console.warn("Mitra push request could not be completed:",pushError);
+      console.error("[Mitra Push Debug] Worker request threw an error", pushError);
     }
   }catch(error){
+    console.error("[Mitra Push Debug] message send failed before Worker stage", error);
     input.value=text;
     showError(error);
     await ask("Message Error",error.message);
