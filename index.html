@@ -1174,6 +1174,7 @@ async function syncMitraUser(){
     body:JSON.stringify({
       username,
       mobile,
+      email:currentUser.email||currentProfile.email||"",
       name:currentProfile.name||currentUser.displayName||"Mitra User"
     })
   });
